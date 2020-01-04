@@ -4,9 +4,6 @@ const path = require( 'path' );
 // in case we need to send a HTTPS request to GitHub's API (trying to avoid importing request or similar)
 const https = require( 'https' );
 
-// access to gold repository
-const nodegit = require( 'nodegit' );
-
 // for the actual API server itself
 const express = require( 'express' );
 const cors = require( 'cors' );
@@ -19,7 +16,6 @@ const config = require( 'rc' )( '3cidev' );
 
 // ...and extend
 config.api.live.databaseFile = path.join( config.root, config.watchers.dataPath, config.watchers.databases.live );
-config.api.live.goldRepository = path.join( config.root, config.threejsRepository, '.git' );
 
 
 // setup HTTP server for incoming API requests
@@ -29,73 +25,6 @@ app.use( cors() );
 
 // database of PRs and commits we're keeping track of
 const db = new Database( config.api.live.databaseFile, { fileMustExist: true } );
-
-
-// for custom git queries
-let repo;
-( async() => {
-
-	repo = await nodegit.Repository.open( config.api.live.goldRepository );
-
-} )();
-
-
-// TODO: dead code?
-async function getMergebase( ref ) {
-
-	if ( /^[a-f0-9]{40}$/i.test( ref ) === true ) {
-
-		console.log( 'REF seems to be a hash:', ref );
-
-		const devHead = await repo.getReferenceCommit( 'mrdoob/dev' );
-		console.log( { devHead } );
-
-		const refCommit = await repo.getCommit( ref );
-		console.log( { refCommit } );
-
-		const base = await nodegit.Merge.base( repo, devHead, refCommit );
-		console.log( { base } );
-
-		return base;
-
-	} else if ( Number.isInteger( ref ) === true || /^[1-9][0-9]{0,5}$/.test( ref ) === true ) {
-
-		console.log( 'REF seems to be a PR number:', ref );
-
-		const devHead = await repo.getReferenceCommit( 'mrdoob/dev' );
-		console.log( { devHead } );
-
-		const prHead = await repo.getReferenceCommit( 'mrdoob/pr/' + ref );
-		console.log( { prHead } );
-
-		const base = await nodegit.Merge.base( repo, devHead, prHead );
-		console.log( { base } );
-
-		return base;
-
-	} else {
-
-		console.error( 'Unknown ref:', ref );
-
-		return;
-
-	}
-
-}
-
-
-app.get( '/mergebase/:ref', async ( req, res ) => {
-
-	const base = await getMergebase( req.params.ref );
-
-	if ( base )
-		res.status( 200 ).contentType( 'application/json' ).send( JSON.stringify( base.tostrS() ) );
-	else
-		res.status( 500 ).send( 'Invalid ref: ' + req.params.ref );
-
-	return !! base;
-
-} );
 
 
 app.get( '/pullrequests', async ( req, res ) => {
