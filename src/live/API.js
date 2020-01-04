@@ -263,7 +263,7 @@ const terminator = function ( sig ) {
 
 		logger.debug( `Received ${sig}` );
 
-		logger.log( `${Date( Date.now() )}: Server stopped` );
+		logger.log( 'Server stopped' );
 
 		process.exit( 1 );
 
