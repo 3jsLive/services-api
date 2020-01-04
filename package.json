@@ -1,0 +1,27 @@
+{
+  "name": "@3cidev/services-api",
+  "private": true,
+  "version": "0.5.0",
+  "description": "API",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "eslintConfig": {
+    "extends": "mdcs",
+    "parserOptions": {
+      "ecmaVersion": 2018
+    }
+  },
+  "author": "3ciDev",
+  "dependencies": {
+    "better-sqlite3": "^5.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "nodegit": "^0.26.3",
+    "rc": "^1.2.8"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-mdcs": "^4.2.3"
+  }
+}
