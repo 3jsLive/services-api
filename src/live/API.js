@@ -17,6 +17,10 @@ const config = require( 'rc' )( '3cidev' );
 // ...and extend
 config.api.live.databaseFile = path.join( config.root, config.watchers.dataPath, config.watchers.databases.live );
 
+// logging
+const { Signale } = require( 'signale' );
+const logger = new Signale( { scope: 'live API', config: { displayTimestamp: true, displayDate: true } } );
+
 
 // setup HTTP server for incoming API requests
 const app = express();
@@ -28,6 +32,8 @@ const db = new Database( config.api.live.databaseFile, { fileMustExist: true } )
 
 
 app.get( '/pullrequests', async ( req, res ) => {
+
+	logger.debug( '/pullrequests', req.query );
 
 	const state = ( req.query[ 'state' ] ) ? req.query[ 'state' ].split( ',' ) : [ 'open' ];
 
@@ -49,6 +55,8 @@ app.get( '/pullrequests', async ( req, res ) => {
 
 app.get( '/commits', async ( req, res ) => {
 
+	logger.debug( '/commits' );
+
 	const commits = db.prepare( `SELECT
 		JSON_GROUP_OBJECT( sha, JSON_OBJECT( 'author', author, 'message', message, 'timestamp', authored_at, 'state', state ) ) AS commits
 		FROM commits
@@ -64,9 +72,11 @@ app.get( '/commits', async ( req, res ) => {
 
 app.get( '/error/:sha', ( req, res ) => {
 
+	logger.debug( '/error/:sha', req.params );
+
 	if ( /^[a-f0-9]{40}$/i.test( req.params.sha ) !== true ) {
 
-		console.error( 'Invalid SHA:', req.params.sha );
+		logger.error( 'Invalid SHA:', req.params.sha );
 
 		res.status( 500 ).send( 'Invalid SHA' );
 
@@ -77,7 +87,7 @@ app.get( '/error/:sha', ( req, res ) => {
 	const currentState = db.prepare( `SELECT state FROM commits WHERE sha = ? LIMIT 1` ).get( req.params.sha );
 	if ( currentState.state && currentState.state === 'uploaded' ) {
 
-		console.log( 'Allegedly erroneous SHA', req.params.sha, 'is already uploaded' );
+		logger.note( 'Allegedly erroneous SHA', req.params.sha, 'is already uploaded' );
 		res.status( 200 ).send( '' );
 		return true;
 
@@ -88,11 +98,11 @@ app.get( '/error/:sha', ( req, res ) => {
 		fs.existsSync( path.join( config.api.live.buildsPath, req.params.sha + '.min.js' ) ) === false ||
 		fs.existsSync( path.join( config.api.live.buildsPath, req.params.sha + '.module.js' ) ) === false ) {
 
-		console.log( 'Files are indeed missing for', req.params.sha );
+		logger.log( 'Files are indeed missing for', req.params.sha );
 
 		db.prepare( 'UPDATE commits SET state = "error" WHERE sha = ?' ).run( req.params.sha );
 
-		console.log( 'noted.' );
+		logger.debug( 'noted.' );
 
 		res.status( 200 ).send( '' );
 
@@ -100,7 +110,7 @@ app.get( '/error/:sha', ( req, res ) => {
 
 	} else {
 
-		console.log( 'Why the error request, all files exist?' );
+		logger.warn( 'Why the error request, all files exist?' );
 
 		res.status( 200 ).send( '' );
 
@@ -113,9 +123,11 @@ app.get( '/error/:sha', ( req, res ) => {
 
 app.get( '/incoming/:sha', ( req, res ) => {
 
+	logger.debug( '/incoming/:sha', req.params.sha );
+
 	if ( /^[a-f0-9]{40}$/i.test( req.params.sha ) !== true ) {
 
-		console.error( 'Invalid SHA:', req.params.sha );
+		logger.error( 'Invalid SHA:', req.params.sha );
 
 		res.status( 500 ).send( 'Invalid SHA' );
 
@@ -126,7 +138,7 @@ app.get( '/incoming/:sha', ( req, res ) => {
 	const preExisting = db.prepare( `SELECT sha FROM commits WHERE sha = ? LIMIT 1` ).all( req.params.sha );
 	if ( preExisting.length > 0 ) {
 
-		console.log( 'Incoming SHA', req.params.sha, 'already known' );
+		logger.log( 'Incoming SHA', req.params.sha, 'already known' );
 		res.status( 200 ).send( '' );
 		return true;
 
@@ -163,7 +175,7 @@ app.get( '/incoming/:sha', ( req, res ) => {
 
 			if ( error ) {
 
-				console.error( error.message, apiRes );
+				logger.error( error.message, apiRes );
 
 				// consume response data to free up memory
 				apiRes.resume();
@@ -199,7 +211,7 @@ app.get( '/incoming/:sha', ( req, res ) => {
 
 				} catch ( e ) {
 
-					console.error( e.message );
+					logger.error( e.message );
 
 					res.status( 500 ).send( e.message );
 
@@ -209,7 +221,7 @@ app.get( '/incoming/:sha', ( req, res ) => {
 
 		} ).on( 'error', ( e ) => {
 
-			console.error( `Got error: ${e.message}` );
+			logger.error( `Got error: ${e.message}` );
 
 			res.status( 500 ).send( e.message );
 
@@ -217,7 +229,7 @@ app.get( '/incoming/:sha', ( req, res ) => {
 
 	} else {
 
-		console.error( 'Not all files found' );
+		logger.error( 'Not all files found' );
 
 		res.status( 500 ).send( 'Not all files found' );
 
@@ -231,6 +243,8 @@ app.get( '/incoming/:sha', ( req, res ) => {
 // default route
 app.get( '*', ( req, res ) => {
 
+	logger.debug( '/*' );
+
 	res.sendStatus( 404 );
 
 } );
@@ -238,18 +252,18 @@ app.get( '*', ( req, res ) => {
 const port = config.api.live.port;
 const host = config.api.live.host;
 
-console.log( `Starting server on ${host}:${port}...` );
+logger.log( `Starting server on ${host}:${port}...` );
 
-app.listen( port, host, () => console.log( 'Server started' ) );
+app.listen( port, host, () => logger.log( 'Server started' ) );
 
 
 const terminator = function ( sig ) {
 
 	if ( typeof sig === 'string' ) {
 
-		console.log( `Received ${sig}` );
+		logger.debug( `Received ${sig}` );
 
-		console.log( `${Date( Date.now() )}: Server stopped` );
+		logger.log( `${Date( Date.now() )}: Server stopped` );
 
 		process.exit( 1 );
 

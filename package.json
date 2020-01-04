@@ -18,7 +18,8 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "nodegit": "^0.26.3",
-    "rc": "^1.2.8"
+    "rc": "^1.2.8",
+    "signale": "^1.4.0"
   },
   "devDependencies": {
     "eslint": "^6.8.0",
