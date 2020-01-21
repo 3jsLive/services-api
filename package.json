@@ -6,19 +6,18 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "eslintConfig": {
-    "extends": "mdcs",
-    "parserOptions": {
-      "ecmaVersion": 2018
-    }
-  },
   "author": "3ciDev",
   "dependencies": {
     "better-sqlite3": "^5.4.3",
+    "bluebird": "^3.7.2",
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "glob": "^7.1.6",
+    "graphlib": "^2.1.8",
+    "json-stable-stringify": "^1.0.1",
     "nodegit": "^0.26.3",
     "rc": "^1.2.8",
+    "shelljs": "^0.8.3",
     "signale": "^1.4.0"
   },
   "devDependencies": {
