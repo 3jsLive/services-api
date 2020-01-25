@@ -1,7 +1,7 @@
 const path = require( 'path' );
 const git = require( 'nodegit' );
-const { history } = require( './utils' );
 const config = require( 'rc' )( '3cidev' );
+const shell = require( 'shelljs' );
 
 // logging
 const { Signale } = require( 'signale' );
@@ -167,15 +167,26 @@ function overview( req, res ) {
 function sparkLines( req, res ) {
 
 	const commit = db.prepare( 'SELECT sha FROM runs LEFT JOIN revisions USING(revisionId) WHERE runs.runId = ?' ).get( req.params.runId ).sha;
-	const ancestry = history.ancestry( commit );
-	const ancestryCommits = [ ancestry.base, ...ancestry.path.reverse() ];
 
-	const placeholdersCommits = new Array( ancestryCommits.length ).fill( '?' ).join( ',' );
+	let ancestry;
+	try {
+
+		ancestry = pathToBase( commit );
+
+	} catch ( err ) {
+
+		logger.error( `pathToBase failed for ${commit}` );
+		res.status( 500 ).send( 'sparklines: history lookup failed' );
+		return [];
+
+	}
+
+	const placeholdersCommits = new Array( ancestry.length ).fill( '?' ).join( ',' );
 
 	const availableRuns = db.prepare( `SELECT runId, sha
 		FROM runs
 		LEFT JOIN revisions USING(revisionId)
-		WHERE sha IN (${placeholdersCommits})` ).all( ...ancestryCommits );
+		WHERE sha IN (${placeholdersCommits})` ).all( ...ancestry );
 
 	// this should be the same length as placeholdersCommits, but sometimes it isn't
 	const placeholdersRuns = new Array( availableRuns.length ).fill( '?' ).join( ',' );
@@ -256,26 +267,102 @@ function backstory( req, res ) {
 
 	const commit = db.prepare( 'SELECT sha FROM runs LEFT JOIN revisions USING(revisionId) WHERE runs.runId = ?' ).get( req.params.runId ).sha;
 
-	// FIXME: overly complicated
-	const result = history.ancestry( commit );
-	const base = result.base;
-	const path = [ base, ...result.path.reverse() ];
+	let ancestry;
 
-	const placeholders = new Array( path.length ).fill( '?' ).join( ',' );
+	try {
+
+		ancestry = pathToBase( commit );
+
+	} catch ( err ) {
+
+		logger.error( `pathToBase failed for ${commit}` );
+
+		res.status( 500 ).send( 'backstory: history lookup failed' );
+
+		return [];
+
+	}
+
+	const placeholders = new Array( ancestry.length ).fill( '?' ).join( ',' );
 
 	const availableRuns = db.prepare( `SELECT runId, sha
 	FROM runs
 	LEFT JOIN revisions USING(revisionId)
-	WHERE sha IN (${placeholders})` ).all( ...path );
+	WHERE sha IN (${placeholders})` ).all( ...ancestry );
 
-	const includingMissingRuns = path.map( commit => {
+	const includingMissingRuns = ancestry.map( sha => {
 
-		const element = availableRuns.find( run => run.sha === commit ) || { runId: - 1 };
+		const element = availableRuns.find( run => run.sha === sha ) || { runId: - 1 };
 
-		return { runId: element.runId, sha: commit };
+		return { runId: element.runId, sha };
 
 	} );
 
 	res.status( 200 ).contentType( 'application/json' ).send( includingMissingRuns );
+
+}
+
+
+function pathToBase( commit ) {
+
+	let baseSha;
+	try {
+
+		baseSha = shell.exec(
+			`git rev-parse "${commit}^^{/(Updated builds.|r1[0-9][0-9])}"`,
+			{ cwd: path.join( config.root, config.threejsRepository ), encoding: 'utf8', silent: true }
+		);
+
+	} catch ( err ) {
+
+		logger.error( `Error while searching for base commit: ${commit}, ${baseSha.code || 'no code'}, ${baseSha.stderr || 'no stderr'}` );
+		throw new Error( 'Error while searching for base commit' );
+
+	}
+
+
+	// no base found?
+	if ( ! baseSha || baseSha.code !== 0 ) {
+
+		logger.error( `No base SHA found for commit ${commit}, ${baseSha.code || 'no code'}, ${baseSha.stderr || 'no stderr'}` );
+		throw new Error( 'No base SHA found' );
+
+	}
+
+
+	// we found base, clean it and use it
+	baseSha = baseSha.stdout.trim();
+
+
+	let history;
+	try {
+
+		history = shell.exec(
+			`git rev-list --ancestry-path --reverse --first-parent --max-age=1556133894 --no-abbrev ${baseSha}...${commit}`,
+			{ cwd: path.join( config.root, config.threejsRepository ), encoding: 'utf8', silent: true }
+		);
+
+	} catch ( err ) {
+
+		logger.error( `Error while searching for commit history: ${commit}, ${history.code || 'no code'}, ${history.stderr || 'no stderr'}` );
+		return [];
+
+	}
+
+
+	// no history found?
+	if ( ! history || history.code !== 0 ) {
+
+		logger.error( `No history found for commit ${commit}` );
+		return [];
+
+	}
+
+
+	// and we found history as well, again clean it and return it
+	history = history.stdout.trim().split( /\n/g );
+
+
+	return [ baseSha, ...history ];
 
 }

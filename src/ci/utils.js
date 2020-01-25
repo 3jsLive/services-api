@@ -57,6 +57,5 @@ function createHandler( category, fileStub, dataPath ) {
 
 
 module.exports = {
-	createHandler,
-	history: require( './base-parent-path' )
+	createHandler
 };
