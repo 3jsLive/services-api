@@ -733,39 +733,3 @@ function declareAllFilesDependencies( revisionId, sourceFile, pathParsed, pathPa
 	bulkInsert( filenames );
 
 }
-
-
-( async() => {
-
-	// await endRun( { params: { sha: '3bbd5eb65e4bf1e8c70fc116635f38d135cc75eb' } }, { status: () => ( { // base
-	// await endRun( { params: { sha: 'e30024042a70b2f9d143529de8b6370ca018d943' } }, { status: () => ( { // child 1
-	// await endRun( { params: { sha: '9aa782fbf2fea487eafd946b5897ce3404d5a04c' } }, { status: () => ( { // child 2
-	// await endRun( { params: { sha: '17c2c9b5fbee6ea7514a52b42d57042e023a38f3' } }, { status: () => ( { // child 3
-	// await endRun( { params: { sha: '1fde8b85565e137bcd89e25c8eaecb7ef75e6910' } }, { status: () => ( {
-	// await endRun( { params: { sha: 'bbca005a62d0088d4f95a3556a3b795cfeb87351' } }, { status: () => ( {
-	// await endRun( { params: { sha: '01ccfba18f25ea6f089882f5146cb1c9ecc24b3c' } }, { status: () => ( {
-	// await endRun( { params: { sha: '9c2974d620ac4921f093b7be1ad90573a98eb6d0' } }, { status: () => ( { // Updated builds.
-	// await endRun( { params: { sha: '515f212281cf5735415c4c74bda562d507ae3198' } }, { status: () => ( { // ^.. child
-	// await endRun( { params: { sha: '3346310a0729274c40936d4de456bb11be82d674' } }, { status: () => ( { // ^.. child-child
-	// await endRun( { params: { sha: '78628e75261f54912528ff05d2c93ef0a60d5b60' } }, { status: () => ( { // ^.. whatever
-	// await endRun( { params: { sha: '00008e75261f54912528ff05d2c93ef0a60d5b60' } }, { status: () => ( {
-	const shas = [
-		// in order
-		"0da5433c0dd06693c7d5bdc81f0e09a1c94b194c",
-		"0409dc9294d018d707edad212545c887fc9bca16",
-		"9c2974d620ac4921f093b7be1ad90573a98eb6d0",
-		"515f212281cf5735415c4c74bda562d507ae3198",
-		"78628e75261f54912528ff05d2c93ef0a60d5b60",
-		"3346310a0729274c40936d4de456bb11be82d674",
-		"617ea9ae91acb02af95178361b33a6113e29e736",
-		"1784fbd08ae49bb0cb0c43ec1c38e27508611b5b",
-		"01ccfba18f25ea6f089882f5146cb1c9ecc24b3c",
-		"bbca005a62d0088d4f95a3556a3b795cfeb87351",
-		"ca35751622f66b788e1bee2e73d470fcce63f762",
-		"1fde8b85565e137bcd89e25c8eaecb7ef75e6910",
-		"a7c3713d7532dbf305f9923185e457101f6a7cec",
-		"07e51a9334cf40654dd9fc48b9b07a1b60a49367"
-	];
-	await Promise.each( shas, sha => endRun( { params: { sha } }, { status: () => ( { send: () => {} } ) } ) );
-
-} )();
