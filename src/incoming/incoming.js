@@ -643,11 +643,19 @@ async function endRun( req, res ) {
 		// add only in-child-but-not-in-base dependencies
 		Object.keys( delta.inChildNotBase ).forEach( srcFile => {
 
-			const source = File.loadByName( srcFile );
+			const hack = new File();
+			hack.name = srcFile;
+			hack.save();
+
+			const source = hack.fileId; //File.loadByName( srcFile );
 
 			delta.inChildNotBase[ srcFile ].forEach( depFile => {
 
-				const dependency = File.loadByName( depFile );
+				const moreHack = new File();
+				moreHack.name = depFile;
+				moreHack.save();
+
+				const dependency = moreHack.fileId; //File.loadByName( depFile );
 
 				queryAdd.run( run.revisionId, source.fileId, dependency.fileId );
 
@@ -672,6 +680,8 @@ function readFilenames( pathParsed, pathPacked ) {
 
 	const uniq = parsed.uniq;
 
+	const coverage = Object.keys( parsed.lines );
+
 	const shaderChunks = packed.shaderChunks.map( sc => sc.source.replace( /^\./, 'src/renderers/shaders' ) ); // FIXME: hardcoded
 
 	const shaderLibs = Object.values( packed.shaderLibs ).reduce( ( all, cur ) => {
@@ -683,7 +693,7 @@ function readFilenames( pathParsed, pathPacked ) {
 
 	}, [] );
 
-	return [ ...uniq, ...shaderChunks, ...shaderLibs ].filter( ( name, i, a ) => a.indexOf( name ) === i );
+	return [ ...uniq, ...coverage, ...shaderChunks, ...shaderLibs ].filter( ( name, i, a ) => a.indexOf( name ) === i );
 
 }
 

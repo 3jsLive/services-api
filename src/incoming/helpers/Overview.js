@@ -31,7 +31,7 @@ class Overview {
 
 		const retval = new Overview();
 		retval.overviewId = result.overviewId;
-		retval.overviewJson = result.overviewJson;
+		retval.overviewJson = JSON.parse( result.overviewJson );
 
 		return retval;
 
@@ -47,7 +47,7 @@ class Overview {
 
 		const retval = new Overview();
 		retval.overviewId = result.overviewId;
-		retval.overviewJson = result.overviewJson;
+		retval.overviewJson = JSON.parse( result.overviewJson );
 
 		return retval;
 
