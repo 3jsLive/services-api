@@ -248,7 +248,7 @@ async function endRun( req, res ) {
 	const tarResult = shell.exec( `tar xzf ${sha}.tar.gz`, { silent: true, cwd: path.join( config.api.ci.jsonPath, 'dependencies' ) } );
 	if ( tarResult.code !== 0 ) {
 
-		logger.error( `Extraction of ${path.join( config.api.ci.jsonPath, 'dependencies', sha + '.tar.gz' )} failed: ${tarResult.code}` );
+		logger.error( `Extraction of ${path.join( config.api.ci.jsonPath, 'dependencies', sha + '.tar.gz' )} failed: ${tarResult.code} ${tarResult.stdout} ${tarResult.stderr}` );
 		res.status( 500 ).send( 'Extraction failed' );
 		return false;
 
