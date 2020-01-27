@@ -23,12 +23,12 @@ const db = new Database( path.join( config.root, config.api.database ), { fileMu
 // import API endpoints
 const checks = require( './checks' );
 const linters = require( './linters' );
-// const typesearches = require( './typeSearches' );
+const typesearches = require( './typeSearches' );
 // const dependencies = require( './dependencies' );
 // const profilings = require( './profilings' );
 const runInfos = require( './runInfos' ); TODO:
 
-Object.entries( { ...checks, ...linters, /*, ...typesearches, ...dependencies, ...profilings, */...runInfos } ).forEach( ( [ route, handler ] ) => {
+Object.entries( { ...checks, ...linters, ...typesearches, /* ...dependencies, ...profilings, */...runInfos } ).forEach( ( [ route, handler ] ) => {
 
 	logger.log( `Adding route for ${route}...` );
 
