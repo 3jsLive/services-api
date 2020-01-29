@@ -17,8 +17,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	overview[ 'CompSrcExp' ] = { result: countFn( checkResults[ 'compareSourceExports' ][ 'results' ] ) };
 	overview[ 'CompExmplsExp' ] = { result: countFn( checkResults[ 'compareExamplesExports' ][ 'results' ] ) };
 
-	// TODO:
-	// overview[ 'UnitTests' ] = { result: checkResults[ 'UnitTests' ].failed };
+	overview[ 'UnitTests' ] = { result: checkResults[ 'runUnitTests' ].failed };
 
 	// TODO:
 	// overview[ 'TSCompiler' ] = { result:

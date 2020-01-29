@@ -78,8 +78,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 		}, {} )
 	};
 
-	// TODO:
-	// files[ 'UnitTests' ] = { files: { 'UNITTESTS': checkResults[ 'UnitTests' ].failed } };
+	files[ 'UnitTests' ] = { files: { 'UNITTESTS': checkResults[ 'runUnitTests' ].failed } };
 
 
 	// linters

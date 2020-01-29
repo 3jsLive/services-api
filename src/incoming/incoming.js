@@ -111,7 +111,7 @@ const checks = [
 	'compareDeclarationsWithDocs',
 	'compareDeclarationsWithInstancedObjects',
 	'compareDeclarationsWithSource',
-	// 'runUnitTests',
+	'runUnitTests',
 	'compareSourceExports',
 	'compareExamplesExports'
 ];
