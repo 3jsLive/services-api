@@ -5,10 +5,10 @@ const Overview = require( './Overview' );
 
 class Run {
 
-	#revision
-	#baselineRun
-	#parentRun
-	#overview
+	// #revision
+	// #baselineRun
+	// #parentRun
+	// #overview
 
 	constructor() {
 
@@ -26,10 +26,10 @@ class Run {
 		// this.overviewId = null;
 		this.type = null;
 
-		this.#revision = null;
-		this.#baselineRun = null;
-		this.#parentRun = null;
-		this.#overview = null;
+		this._revision = null;
+		this._baselineRun = null;
+		this._parentRun = null;
+		this._overview = null;
 
 	}
 
@@ -37,13 +37,13 @@ class Run {
 
 		if ( value === null ) {
 
-			this.#baselineRun = null;
+			this._baselineRun = null;
 
 		} else if ( Number.isInteger( value ) && value > 0 ) {
 
-			if ( ! this.#baselineRun || ( this.#baselineRun && this.#baselineRun.runId !== value ) ) {
+			if ( ! this._baselineRun || ( this._baselineRun && this._baselineRun.runId !== value ) ) {
 
-				this.#baselineRun = Run.loadByRunId( value );
+				this._baselineRun = Run.loadByRunId( value );
 
 			}
 
@@ -57,9 +57,9 @@ class Run {
 
 	get baselineRunId() {
 
-		if ( this.#baselineRun ) {
+		if ( this._baselineRun ) {
 
-			return this.#baselineRun.runId;
+			return this._baselineRun.runId;
 
 		} else {
 
@@ -69,15 +69,20 @@ class Run {
 
 	}
 
+	/**
+	 * @type {Run}
+	 */
 	get baselineRun() {
-		return this.#baselineRun;
+
+		return this._baselineRun;
+
 	}
 
 	set baselineRun( value ) {
 
 		if ( value instanceof Run || value === null ) {
 
-			this.#baselineRun = value;
+			this._baselineRun = value;
 
 		} else {
 
@@ -91,13 +96,13 @@ class Run {
 
 		if ( value === null ) {
 
-			this.#parentRun = null;
+			this._parentRun = null;
 
 		} else if ( Number.isInteger( value ) && value > 0 ) {
 
-			if ( ! this.#parentRun || ( this.#parentRun && this.#parentRun.runId !== value ) ) {
+			if ( ! this._parentRun || ( this._parentRun && this._parentRun.runId !== value ) ) {
 
-				this.#parentRun = Run.loadByRunId( value );
+				this._parentRun = Run.loadByRunId( value );
 
 			}
 
@@ -111,9 +116,9 @@ class Run {
 
 	get parentRunId() {
 
-		if ( this.#parentRun ) {
+		if ( this._parentRun ) {
 
-			return this.#parentRun.runId;
+			return this._parentRun.runId;
 
 		} else {
 
@@ -124,20 +129,22 @@ class Run {
 	}
 
 	get parentRun() {
-		return this.#parentRun;
+
+		return this._parentRun;
+
 	}
 
 	set parentRun( value ) {
 
 		if ( value instanceof Run || value === null ) {
 
-			this.#parentRun = value;
+			this._parentRun = value;
 
 		} else {
 
 			throw new Error( 'Invalid value for parentRun:', value );
 
-		}			
+		}
 
 	}
 
@@ -145,13 +152,13 @@ class Run {
 
 		if ( value === null ) {
 
-			this.#revision = null;
+			this._revision = null;
 
 		} else if ( Number.isInteger( value ) && value > 0 ) {
 
-			if ( ! this.#revision || ( this.#revision && this.#revision.revisionId !== value ) ) {
+			if ( ! this._revision || ( this._revision && this._revision.revisionId !== value ) ) {
 
-				this.#revision = Revision.loadByRevisionId( value );
+				this._revision = Revision.loadByRevisionId( value );
 
 			}
 
@@ -165,9 +172,9 @@ class Run {
 
 	get revisionId() {
 
-		if ( this.#revision ) {
+		if ( this._revision ) {
 
-			return this.#revision.revisionId;
+			return this._revision.revisionId;
 
 		} else {
 
@@ -179,7 +186,7 @@ class Run {
 
 	get revision() {
 
-		return this.#revision;
+		return this._revision;
 
 	}
 
@@ -187,13 +194,13 @@ class Run {
 
 		if ( value instanceof Revision || value === null ) {
 
-			this.#revision = value;
+			this._revision = value;
 
 		} else {
 
 			throw new Error( 'Invalid value for revision:', value );
 
-		}			
+		}
 
 	}
 
@@ -201,13 +208,13 @@ class Run {
 
 		if ( value === null ) {
 
-			this.#overview = null;
+			this._overview = null;
 
 		} else if ( Number.isInteger( value ) && value > 0 ) {
 
-			if ( ! this.#overview || ( this.#overview && this.#overview.overviewId !== value ) ) {
+			if ( ! this._overview || ( this._overview && this._overview.overviewId !== value ) ) {
 
-				this.#overview = Overview.loadById( value );
+				this._overview = Overview.loadById( value );
 
 			}
 
@@ -221,9 +228,9 @@ class Run {
 
 	get overviewId() {
 
-		if ( this.#overview ) {
+		if ( this._overview ) {
 
-			return this.#overview.overviewId;
+			return this._overview.overviewId;
 
 		} else {
 
@@ -235,7 +242,7 @@ class Run {
 
 	get overview() {
 
-		return this.#overview;
+		return this._overview;
 
 	}
 
@@ -243,13 +250,13 @@ class Run {
 
 		if ( value instanceof Overview || value === null ) {
 
-			this.#overview = value;
+			this._overview = value;
 
 		} else {
 
 			throw new Error( 'Invalid value for overview:', value );
 
-		}			
+		}
 
 	}
 
