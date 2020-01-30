@@ -148,7 +148,7 @@ const sqlCleanErrors = db.prepare( 'DELETE FROM errors WHERE runId = ?' );
  * @param {number} revisionId
  * @returns {Object.<string, string[]>}
  */
-function loadDependencies( revisionId ) {
+function loadRawDependencies( revisionId ) {
 
 	const query = db.prepare( `SELECT dependencies.*, f1.name sourceFile, f2.name dependentFile FROM dependencies
 	LEFT JOIN files f1 ON f1.fileId = dependencies.srcFileId
@@ -175,20 +175,25 @@ function loadDependencies( revisionId ) {
  * Create a diff between two sets of dependencies
  * @param {Object.<string, string[]>} baseDependencies
  * @param {Object.<string, string[]>} childDependencies
+ * @param {string[]} deleted
  * @returns {{ inBaseNotChild: (Object.<string, string[]>|{}), inChildNotBase: (Object.<string, string[]>|{}) }}
  */
-function createDependenciesDelta( baseDependencies, childDependencies ) {
+function createDependenciesDelta( baseDependencies, childDependencies, deleted ) {
 
 	// probably quicker to solve with some Set() logic
 	const inBaseNotChild = {};
 	const inChildNotBase = {};
 
-	// everything in base but not in child gets NULLed
+	// everything in base but not in child stays put, unless it's in deleted then it gets NULL'ed
 	Object.keys( baseDependencies ).forEach( srcFile => {
 
 		if ( srcFile in childDependencies === false ) {
 
-			inBaseNotChild[ srcFile ] = baseDependencies[ srcFile ];
+			if ( srcFile in deleted === true ) {
+
+				inBaseNotChild[ srcFile ] = baseDependencies[ srcFile ];
+
+			}
 
 		} else {
 
@@ -577,8 +582,12 @@ async function endRun( req, res ) {
 
 
 	// Step 12:
-	// Save dependencies tree (or delta)
-	if ( ! baseSha || ! run.baselineRun ) { // no baseline? -> save everything
+	// Save dependencies tree if no base available or if a base itself (or delta)
+	const baseResult = shell.exec( `git log --max-count=1 --oneline ${sha}`, { cwd: threejsGitPath, encoding: 'utf8', silent: true } );
+
+	if ( ! baseSha || ! run.baselineRun || baseResult.stdout.includes( 'Updated builds.' ) === true ) {
+
+		// no baseline? -> save everything
 
 		for ( const file of glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) ) ) {
 
@@ -596,7 +605,8 @@ async function endRun( req, res ) {
 
 	} else { // baseline exists -> save delta
 
-		const baseDependencies = loadDependencies( run.baselineRun.revisionId );
+		// Step 1: Load BASE dependencies
+		const baseDependencies = loadRawDependencies( run.baselineRun.revisionId );
 
 		const childDependencies = glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) ).reduce( ( all, file ) => {
 
@@ -617,7 +627,23 @@ async function endRun( req, res ) {
 
 		}, {} );
 
-		const delta = createDependenciesDelta( baseDependencies, childDependencies );
+		const delQuery = shell.exec( `git show ${sha} --name-status --oneline`, { cwd: threejsGitPath, encoding: 'utf8', silent: true } );
+		if ( delQuery.code !== 0 ) {
+
+			logger.error( `Couldn't determine deleted files for ${sha}: ${delQuery.code} ${delQuery.stderr}` );
+
+			res.status( 500 ).send( `Couldn't determine deleted files for ${sha}` );
+
+			throw new Error( `Couldn't determine deleted files for ${sha}` );
+
+		}
+
+		const deleted = delQuery.stdout
+			.split( /\n/g )									// split output into lines
+			.filter( line => line.startsWith( `D	` ) )	// filter for lines like 'D	foo'
+			.map( line => line.replace( 'D	', '' ) );		// cut those lines down to name
+
+		const delta = createDependenciesDelta( baseDependencies, childDependencies, deleted );
 
 		console.log( delta );
 
