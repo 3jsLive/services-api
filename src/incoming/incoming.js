@@ -585,9 +585,11 @@ async function endRun( req, res ) {
 	// Save dependencies tree if no base available or if a base itself (or delta)
 	const baseResult = shell.exec( `git log --max-count=1 --oneline ${sha}`, { cwd: threejsGitPath, encoding: 'utf8', silent: true } );
 
-	if ( ! baseSha || ! run.baselineRun || baseResult.stdout.includes( 'Updated builds.' ) === true ) {
+	if ( ! baseSha || ! run.baselineRun || baseResult.stdout.includes( 'Updated builds.' ) === true || /\br1[0-9]{2}\b/.test( baseResult.stdout ) === true ) {
 
 		// no baseline? -> save everything
+
+		logger.debug( 'stdout:', baseResult.stdout );
 
 		for ( const file of glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) ) ) {
 
