@@ -145,7 +145,7 @@ app.get( '/sha/:sha', ( req, res ) => {
 	// Ask git what changed between the parent and the current commit
 	// TODO: ask first, *then* create depTree for better performance?
 
-	const retval = shell.exec( `git diff --name-only ${req.params.sha} "${parentSha}^"`, { encoding: 'utf8', silent: true, cwd: gitDir } );
+	const retval = shell.exec( `git diff --name-only ${req.params.sha} ${parentSha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
 
 	if ( retval.code === 0 ) {
 
