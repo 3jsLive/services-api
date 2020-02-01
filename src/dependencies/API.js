@@ -1,6 +1,7 @@
 const jsonStableStringify = require( 'json-stable-stringify' );
 const path = require( 'path' );
 const shell = require( 'shelljs' );
+const glob = require( 'glob' );
 
 
 const Run = require( '../incoming/helpers/Run' );
@@ -41,6 +42,25 @@ app.get( '/sha/:sha', ( req, res ) => {
 	}
 
 	const gitDir = path.join( config.root, config.threejsRepository );
+
+	// Step 0:
+	// Early exit if it's a base commit
+	const baseResult = shell.exec( `git log --max-count=1 --oneline ${req.params.sha}`, { cwd: gitDir, encoding: 'utf8', silent: true } );
+	if ( baseResult.code === 0 ) {
+
+		if ( baseResult.stdout.includes( 'Updated builds.' ) === true || /\br1[0-9]{2}\b/.test( baseResult.stdout ) === true ) {
+
+			// everything.
+			const allHtmlFiles = glob.sync( path.join( gitDir, '{docs,examples}', '**', '*.html' ) );
+
+			res.status( 200 ).send( jsonStableStringify( allHtmlFiles ) );
+
+			return true;
+
+		}
+
+	}
+
 
 	// Step 1:
 	// What's the parent's SHA?
