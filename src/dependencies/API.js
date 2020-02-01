@@ -51,7 +51,9 @@ app.get( '/sha/:sha', ( req, res ) => {
 		if ( baseResult.stdout.includes( 'Updated builds.' ) === true || /\br1[0-9]{2}\b/.test( baseResult.stdout ) === true ) {
 
 			// everything.
-			const allHtmlFiles = glob.sync( path.join( gitDir, '{docs,examples}', '**', '*.html' ) );
+			const allHtmlFiles = glob.sync( path.join( gitDir, '{docs,examples}', '**', '*.html' ) ).map( p => path.relative( gitDir, p ) );
+
+			logger.debug( `REQUEST ${req.params.sha} is base, sending everything (${allHtmlFiles.length})` );
 
 			res.status( 200 ).send( jsonStableStringify( allHtmlFiles ) );
 
