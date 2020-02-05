@@ -136,7 +136,6 @@ const dependencies = [
 const sqlInsertResult = db.prepare( 'INSERT OR IGNORE INTO results ( `testId`, `fileId`, `value` ) VALUES ( ?, ?, ? )' );
 const sqlSelectResultIdFromTestIdAndFileIdAndValue = db.prepare( 'SELECT resultId FROM results WHERE testId = ? AND fileId = ? AND value = ?' ); // ugh
 
-const sqlCleanRun2Result = db.prepare( 'DELETE FROM runs2results WHERE runId = ?' );
 const sqlInsertRun2Result = db.prepare( 'INSERT OR IGNORE INTO runs2results ( `runId`, `resultId` ) VALUES ( ?, ? )' );
 
 const sqlInsertErrorsResult = db.prepare( 'INSERT OR REPLACE INTO errors ( `runId`, `testId`, `value` ) VALUES ( ?, ?, ? )' );
@@ -300,7 +299,8 @@ async function endRun( req, res ) {
 		// failed to find a run?
 		run = new Run();
 
-		run.revisionId = revision.revisionId;
+		// run.revisionId = revision.revisionId;
+		run.revision = revision;
 		run.overview = null;
 
 		run.reason = 'CI';
@@ -526,7 +526,7 @@ async function endRun( req, res ) {
 
 	// Step 10:
 	// Save results
-	sqlCleanRun2Result.run( run.runId );
+	run.cleanResults();
 
 	logger.log( 'Adding tests...' );
 
