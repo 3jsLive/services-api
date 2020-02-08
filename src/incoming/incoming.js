@@ -8,12 +8,12 @@ const glob = require( 'glob' );
 
 
 // helpers
-// const Dependency = require( './helpers/Dependency' );
-const Run = require( './helpers/Run' );
-const Revision = require( './helpers/Revision' );
-const Overview = require( './helpers/Overview' );
-const Test = require( './helpers/Test' );
-const File = require( './helpers/File' );
+// const Dependency = require( '../helpers/Dependency' );
+const Run = require( '../helpers/Run' );
+const Revision = require( '../helpers/Revision' );
+const Overview = require( '../helpers/Overview' );
+const Test = require( '../helpers/Test' );
+const File = require( '../helpers/File' );
 
 
 // summing up all errors across all tests,

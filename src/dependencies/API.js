@@ -3,10 +3,8 @@ const path = require( 'path' );
 const shell = require( 'shelljs' );
 const glob = require( 'glob' );
 
-
-const Run = require( '../incoming/helpers/Run' );
-const Revision = require( '../incoming/helpers/Revision' );
-const File = require( '../incoming/helpers/File' );
+const Run = require( '../helpers/Run' );
+const Revision = require( '../helpers/Revision' );
 
 const express = require( 'express' );
 const cors = require( 'cors' );
