@@ -4,7 +4,7 @@
 	the parent as well as the current run's baseline.
 */
 
-module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults ) => {
+module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults ) => {
 
 	const overview = {};
 
@@ -82,6 +82,14 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	dependencies.forEach( name => {
 
 		overview[ name ] = { result: countFn( dependenciesResults[ name ][ 'results' ] ) };
+
+	} );
+
+
+	// dependencies
+	profiling.forEach( name => {
+
+		overview[ name ] = { result: countFn( profilingResults[ name ][ 'results' ] ) };
 
 	} );
 

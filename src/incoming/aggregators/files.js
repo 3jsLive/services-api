@@ -2,7 +2,7 @@
 	count hits per file, e.g. test 'check for broken links' found 4 broken links in foo.html -> foo.html: 4
 */
 
-module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults ) => {
+module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults ) => {
 
 	const files = {};
 
@@ -96,6 +96,14 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	dependencies.forEach( name => {
 
 		files[ name ] = { files: countFn( dependenciesResults[ name ][ 'results' ] ) };
+
+	} );
+
+
+	// profiling
+	profiling.forEach( name => {
+
+		files[ name ] = { files: countFn( profilingResults[ name ][ 'results' ] ) };
 
 	} );
 

@@ -2,7 +2,7 @@
 	count total errors per test, summed over all files that were tested
 */
 
-module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults ) => {
+module.exports = ( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults ) => {
 
 	const errors = {};
 
@@ -62,6 +62,21 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 		errors[ name ] = Object.keys( dependenciesResults[ name ][ 'results' ] ).reduce( ( all, filename ) => {
 
 			all += dependenciesResults[ name ][ 'results' ][ filename ][ 'errors' ].length;
+			return all;
+
+		}, 0 );
+
+	} );
+
+
+	//
+	// profiling
+	//
+	profiling.forEach( name => {
+
+		errors[ name ] = Object.keys( profilingResults[ name ][ 'results' ] ).reduce( ( all, filename ) => {
+
+			all += profilingResults[ name ][ 'results' ][ filename ][ 'errors' ].length;
 			return all;
 
 		}, 0 );
