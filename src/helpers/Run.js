@@ -25,6 +25,9 @@ class Run {
 
 	}
 
+	/**
+	 * @readonly
+	 */
 	set baselineRunId( value ) {
 
 		throw new Error( 'baselineRunId is read-only' );
@@ -76,6 +79,9 @@ class Run {
 
 	}
 
+	/**
+	 * @readonly
+	 */
 	set parentRunId( value ) {
 
 		throw new Error( 'parentRunId is read-only' );
@@ -127,6 +133,9 @@ class Run {
 
 	}
 
+	/**
+	 * @readonly
+	 */
 	set revisionId( value ) {
 
 		throw new Error( 'revisionId is read-only' );
@@ -178,6 +187,9 @@ class Run {
 
 	}
 
+	/**
+	 * @readonly
+	 */
 	set overviewId( value ) {
 
 		throw new Error( 'overviewId is read-only' );
@@ -337,10 +349,20 @@ class Run {
 	cleanResults() {
 
 		const query = Run.db.prepare( 'DELETE FROM runs2results WHERE runId = ?' );
-		const result = query.exec( this.runId );
+		const result = query.run( this.runId );
 
 		if ( ! result )
 			throw new Error( `Deleting results of run #${this.runId} failed` );
+
+	}
+
+	cleanErrors() {
+
+		const query = Run.db.prepare( 'DELETE FROM errors WHERE runId = ?' );
+		const result = query.run( this.runId );
+
+		if ( ! result )
+			throw new Error( `Deleting errors of run #${this.runId} failed` );
 
 	}
 

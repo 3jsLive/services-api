@@ -250,6 +250,22 @@ describe( `helpers / Run`, function () {
 
 		} );
 
+		it( 'lazy loads', function () {
+
+			const run = new Run();
+
+			run._baselineRun = 2;
+
+			assert.strictEqual( run._baselineRun, 2 );
+
+			const oldRun = Run.loadByRunId( 2 );
+
+			assert.deepStrictEqual( run.baselineRun, oldRun );
+
+			assert.strictEqual( run.baselineRun._baselineRun, 1 );
+
+		} );
+
 	} );
 
 	it( 'loadBy*', function () {
