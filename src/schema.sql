@@ -174,3 +174,5 @@ CREATE INDEX IF NOT EXISTS "src-value" ON "dependencies" (
 COMMIT;
 
 PRAGMA foreign_keys = '1';
+
+PRAGMA journal_mode = 'WAL';
