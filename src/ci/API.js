@@ -1,4 +1,3 @@
-const fs = require( 'fs' );
 const path = require( 'path' );
 const express = require( 'express' );
 const cors = require( 'cors' );
@@ -24,11 +23,11 @@ const db = new Database( path.join( config.root, config.api.database ), { fileMu
 const checks = require( './checks' );
 const linters = require( './linters' );
 const typesearches = require( './typeSearches' );
-// const dependencies = require( './dependencies' );
-// const profilings = require( './profilings' );
-const runInfos = require( './runInfos' ); TODO:
+const dependencies = require( './dependencies' );
+const profilings = require( './profilings' );
+const runInfos = require( './runInfos' );
 
-Object.entries( { ...checks, ...linters, ...typesearches, /* ...dependencies, ...profilings, */...runInfos } ).forEach( ( [ route, handler ] ) => {
+Object.entries( { ...checks, ...linters, ...typesearches, ...dependencies, ...profilings, ...runInfos } ).forEach( ( [ route, handler ] ) => {
 
 	logger.log( `Adding route for ${route}...` );
 
@@ -41,29 +40,6 @@ Object.entries( { ...checks, ...linters, ...typesearches, /* ...dependencies, ..
 	} );
 
 } );
-
-
-// ----------------------------------------------------------------------------------------------------------- //
-// faulty dependencies detection for docs-docs connections
-// ----------------------------------------------------------------------------------------------------------- //
-app.get( '/depsDocsDocs/showFile/:sha', ( req, res ) => {
-
-	if ( /^[a-f0-9]{40}$/i.test( req.params.sha ) !== true ) {
-
-		logger.error( 'Invalid SHA:', req.params.sha );
-
-		res.status( 500 ).send( 'Invalid SHA' );
-
-		return false;
-
-	}
-
-	const content = fs.readFileSync( `${config.jsonPath}${req.params.sha}-DocsDocsDeps.json`, 'utf8' );
-
-	res.status( 200 ).contentType( 'application/json' ).send( content );
-
-} );
-
 
 
 // ----------------------------------------------------------------------------------------------------------- //

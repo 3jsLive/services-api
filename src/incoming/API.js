@@ -16,7 +16,7 @@ app.use( cors() );
 // import API endpoints
 const incoming = require( './incoming' );
 
-Object.entries( { ...incoming } ).forEach( ( [ route, handler ] ) => {
+Object.entries( incoming.routes ).forEach( ( [ route, handler ] ) => {
 
 	logger.log( `Adding route for ${route}...` );
 

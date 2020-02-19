@@ -5,6 +5,7 @@ const nodegit = require( 'nodegit' );
 const shell = require( 'shelljs' );
 const path = require( 'path' );
 const glob = require( 'glob' );
+const { getBase, getParent, isBase } = require( '../helpers/History' );
 
 
 // helpers
@@ -44,14 +45,14 @@ const routesRuns = {
 };
 
 // maybe later?
-const routesTasks = {
-	// '/incoming/startTask/:name': startTask,
-	// '/incoming/endTask/:name': endTask,
-	// '/incoming/failTask/:name': failTask
-};
+// const routesTasks = {
+// '/incoming/startTask/:name': startTask,
+// '/incoming/endTask/:name': endTask,
+// '/incoming/failTask/:name': failTask
+// };
 
 module.exports = {
-	...Object.entries( routesRuns ).reduce( ( all, [ route, handler ] ) => {
+	routes: Object.entries( routesRuns ).reduce( ( all, [ route, handler ] ) => {
 
 		all[ route ] = async ( req, res ) => {
 
@@ -75,29 +76,9 @@ module.exports = {
 
 	}, {} ),
 
-	...Object.entries( routesTasks ).reduce( ( all, [ route, handler ] ) => {
-
-		all[ route ] = async ( req, res ) => {
-
-			if ( /^[A-Z]+$/i.test( req.params.name ) !== true ) {
-
-				logger.error( 'Invalid task name:', req.params.name );
-
-				res.status( 500 ).send( 'Invalid task name' );
-
-				return false;
-
-			}
-
-			await handler( req, res );
-
-			return true;
-
-		};
-
-		return all;
-
-	}, {} )
+	endRun,
+	readFilenames,
+	_readResults
 };
 
 
@@ -129,102 +110,22 @@ const linters = [
 
 // active dependencies checks
 const dependencies = [
-	// 'DocsDocsDeps'
+	'DocsDocsDeps'
+];
+
+// active profiling
+const profiling = [
+	'ProfConsole'
 ];
 
 
 const sqlInsertResult = db.prepare( 'INSERT OR IGNORE INTO results ( `testId`, `fileId`, `value` ) VALUES ( ?, ?, ? )' );
 const sqlSelectResultIdFromTestIdAndFileIdAndValue = db.prepare( 'SELECT resultId FROM results WHERE testId = ? AND fileId = ? AND value = ?' ); // ugh
 
-const sqlCleanRun2Result = db.prepare( 'DELETE FROM runs2results WHERE runId = ?' );
 const sqlInsertRun2Result = db.prepare( 'INSERT OR IGNORE INTO runs2results ( `runId`, `resultId` ) VALUES ( ?, ? )' );
 
 const sqlInsertErrorsResult = db.prepare( 'INSERT OR REPLACE INTO errors ( `runId`, `testId`, `value` ) VALUES ( ?, ?, ? )' );
-const sqlCleanErrors = db.prepare( 'DELETE FROM errors WHERE runId = ?' );
 
-
-/**
- * load dependencies, ignoring any delta tree stuff
- * @param {number} revisionId
- * @returns {Object.<string, string[]>}
- */
-function loadRawDependencies( revisionId ) {
-
-	const query = db.prepare( `SELECT dependencies.*, f1.name sourceFile, f2.name dependentFile FROM dependencies
-	LEFT JOIN files f1 ON f1.fileId = dependencies.srcFileId
-	LEFT JOIN files f2 ON f2.fileId = dependencies.depFileId
-	WHERE revisionId = ?` );
-	const result = query.all( revisionId );
-
-	if ( ! result || result.length === 0 )
-		throw new Error( `Failed to load base dependencies for revisionId '${revisionId}'` );
-
-	return result.reduce( ( all, dep ) => {
-
-		all[ dep.sourceFile ] = all[ dep.sourceFile ] || [];
-		all[ dep.sourceFile ].push( dep.dependentFile );
-
-		return all;
-
-	}, {} );
-
-}
-
-
-/**
- * Create a diff between two sets of dependencies
- * @param {Object.<string, string[]>} baseDependencies
- * @param {Object.<string, string[]>} childDependencies
- * @param {string[]} deleted
- * @returns {{ inBaseNotChild: (Object.<string, string[]>|{}), inChildNotBase: (Object.<string, string[]>|{}) }}
- */
-function createDependenciesDelta( baseDependencies, childDependencies, deleted ) {
-
-	// probably quicker to solve with some Set() logic
-	const inBaseNotChild = {};
-	const inChildNotBase = {};
-
-	// everything in base but not in child stays put, unless it's in deleted then it gets NULL'ed
-	Object.keys( baseDependencies ).forEach( srcFile => {
-
-		if ( srcFile in childDependencies === false ) {
-
-			if ( srcFile in deleted === true ) {
-
-				inBaseNotChild[ srcFile ] = baseDependencies[ srcFile ];
-
-			}
-
-		} else {
-
-			const diff = baseDependencies[ srcFile ].filter( d => childDependencies[ srcFile ].includes( d ) === false );
-			if ( diff.length > 0 )
-				inBaseNotChild[ srcFile ] = diff;
-
-		}
-
-	} );
-
-	// everything in child but not in base gets saved to the database
-	Object.keys( childDependencies ).forEach( srcFile => {
-
-		if ( srcFile in baseDependencies === false ) {
-
-			inChildNotBase[ srcFile ] = childDependencies[ srcFile ];
-
-		} else {
-
-			const diff = childDependencies[ srcFile ].filter( d => baseDependencies[ srcFile ].includes( d ) === false );
-			if ( diff.length > 0 )
-				inChildNotBase[ srcFile ] = diff;
-
-		}
-
-	} );
-
-	return { inBaseNotChild, inChildNotBase };
-
-}
 
 /**
  * @param {import('express').Request} req
@@ -236,21 +137,24 @@ async function endRun( req, res ) {
 
 	// cache
 	const threejsGitPath = path.join( config.root, config.threejsRepository );
+	const defaultExecOptions = { cwd: threejsGitPath, encoding: 'utf8', silent: true };
+
 
 	// Step 0:
 	// Are there actually any test results available? If so, extract them
-	const resultFiles = glob.sync( path.join( config.api.ci.jsonPath, '{checks,linters,dependencies}', `*-${sha}.json` ) );
+	const resultFiles = glob.sync( path.join( config.api.ci.jsonPath, '{checks,linters,dependencies,profiles}', `*-${sha}.json` ) );
 	// const dependenciesArchive = fs.existsSync( path.join( config.api.ci.jsonPath, 'dependencies', `${sha}.tar.gz` ) );
 	const dependenciesArchive = true;
-	if ( resultFiles.length < ( checks.length + linters.length + dependencies.length ) || dependenciesArchive === false ) {
+	const shouldBeLength = checks.length + linters.length + dependencies.length + profiling.length;
+	if ( resultFiles.length < shouldBeLength || dependenciesArchive === false ) {
 
-		logger.error( `endRun called while still missing results: ${resultFiles.length} vs ${( checks.length + linters.length + dependencies.length )} and ${dependenciesArchive}` );
+		logger.error( `endRun called while still missing results: ${resultFiles.length} vs ${shouldBeLength} and ${dependenciesArchive}` );
 		res.status( 500 ).send( 'Results missing' );
 		return false;
 
 	}
 
-	const tarResult = shell.exec( `tar xzf ${sha}.tar.gz`, { silent: true, cwd: path.join( config.api.ci.jsonPath, 'dependencies' ) } );
+	const tarResult = shell.exec( `tar xzf ${sha}.tar.gz`, { ...defaultExecOptions, cwd: path.join( config.api.ci.jsonPath, 'dependencies' ) } );
 	if ( tarResult.code !== 0 ) {
 
 		logger.error( `Extraction of ${path.join( config.api.ci.jsonPath, 'dependencies', sha + '.tar.gz' )} failed: ${tarResult.code} ${tarResult.stdout} ${tarResult.stderr}` );
@@ -300,7 +204,7 @@ async function endRun( req, res ) {
 		// failed to find a run?
 		run = new Run();
 
-		run.revisionId = revision.revisionId;
+		run.revision = revision;
 		run.overview = null;
 
 		run.reason = 'CI';
@@ -322,21 +226,16 @@ async function endRun( req, res ) {
 	let baseSha;
 	try {
 
-		baseSha = shell.exec(
-			`git rev-parse "${sha}^^{/(Updated builds.|r1[0-9][0-9])}"`,
-			{ cwd: threejsGitPath, encoding: 'utf8', silent: true }
-		);
+		baseSha = getBase( sha, defaultExecOptions.cwd );
 
 	} catch ( err ) {
 
-		logger.error( `Couldn't find base commit, saving in full: ${sha}, ${baseSha.code || 'no code'}, ${baseSha.stderr || 'no stderr'}` );
+		logger.error( `Couldn't find base commit, saving in full: ${sha} ${err}` );
 
 	}
 
 	// ...and set its run as baselineRunId
-	if ( baseSha ) {	// Note: case "! baseSha" will be handled later
-
-		baseSha = baseSha.stdout.trim();
+	if ( baseSha !== null ) {	// Note: case "! baseSha" will be handled later
 
 		logger.log( `Base SHA for ${sha}: ${baseSha}` );
 
@@ -363,21 +262,16 @@ async function endRun( req, res ) {
 	let parentSha;
 	try {
 
-		parentSha = shell.exec(
-			`git rev-parse "${sha}^"`,
-			{ cwd: threejsGitPath, encoding: 'utf8', silent: true }
-		);
+		parentSha = getParent( sha, defaultExecOptions.cwd );
 
 	} catch ( err ) {
 
-		logger.error( `Couldn't find parent commit: ${sha}, ${parentSha.code || 'no code'}, ${parentSha.stderr || 'no stderr'}` );
+		logger.error( `Couldn't find parent commit: ${sha} ${err}` );
 
 	}
 
 	// ...and set its run as parentRunId
 	if ( parentSha ) {	// Note: case "! parentSha" will NOT be handled later, we just leave it at NULL
-
-		parentSha = parentSha.stdout.trim();
 
 		logger.log( `Parent SHA for ${sha}: ${parentSha}` );
 
@@ -402,32 +296,11 @@ async function endRun( req, res ) {
 	// Step 6:
 	// Read uploaded task results
 	// TODO: error handling
-	const checkResults = await Promise.props( checks.reduce( ( results, check ) => {
-
-		results[ check ] = fs.promises.readFile( `${config.root}/checks/${check}-${sha}.json`, 'utf8' )
-			.then( json => JSON.parse( json ) );
-
-		return results;
-
-	}, {} ) );
-
-	const linterResults = await Promise.props( linters.reduce( ( results, linter ) => {
-
-		results[ linter ] = fs.promises.readFile( `${config.root}/linters/${linter}-${sha}.json`, 'utf8' )
-			.then( json => JSON.parse( json ) );
-
-		return results;
-
-	}, {} ) );
-
-	const dependenciesResults = await Promise.props( dependencies.reduce( ( results, dep ) => {
-
-		results[ dep ] = fs.promises.readFile( `${config.root}/dependencies/${dep}-${sha}.json`, 'utf8' )
-			.then( json => JSON.parse( json ) );
-
-		return results;
-
-	}, {} ) );
+	// TODO: uncouple profiling from dependencies
+	const checkResults = await Promise.props( checks.reduce( _readResults( sha, 'checks' ), {} ) );
+	const linterResults = await Promise.props( linters.reduce( _readResults( sha, 'linters' ), {} ) );
+	const dependenciesResults = await Promise.props( dependencies.reduce( _readResults( sha, 'dependencies' ), {} ) );
+	const profilingResults = await Promise.props( profiling.reduce( _readResults( sha, 'profiles' ), {} ) );
 
 
 	// Step 7:
@@ -436,7 +309,8 @@ async function endRun( req, res ) {
 	// count major errors
 	const majorErrors = Object.entries( checkResults ).concat(
 		Object.entries( linterResults ),
-		Object.entries( dependenciesResults ) ).reduce( ( totalSum, [ test, results ] ) => {
+		Object.entries( dependenciesResults ),
+		Object.entries( profilingResults ) ).reduce( ( totalSum, [ test, results ] ) => {
 
 		// TODO: { js: errors, dts: errors } etc. need additional logic
 		if ( ! results.errors || results.errors.length === 0 ) {
@@ -467,13 +341,13 @@ async function endRun( req, res ) {
 
 	// count total hits per test
 	// TODO: turn into objects
-	const overview = aggregatorOverview( checks, checkResults, linters, linterResults, dependencies, dependenciesResults );
+	const overview = aggregatorOverview( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults );
 
 	// count hits per file
-	const files = aggregatorFiles( checks, checkResults, linters, linterResults, dependencies, dependenciesResults );
+	const files = aggregatorFiles( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults );
 
 	// count errors per test
-	const errors = aggregatorErrors( checks, checkResults, linters, linterResults, dependencies, dependenciesResults );
+	const errors = aggregatorErrors( checks, checkResults, linters, linterResults, dependencies, dependenciesResults, profiling, profilingResults );
 
 
 	// Step 8:
@@ -520,13 +394,13 @@ async function endRun( req, res ) {
 	const overviewObj = new Overview();
 	overviewObj.overviewJson = jsonStableStringify( overview );
 	overviewObj.save();
-	run.overviewId = overviewObj.overviewId;
+	run.overview = overviewObj;
 	run.save();
 
 
 	// Step 10:
 	// Save results
-	sqlCleanRun2Result.run( run.runId );
+	run.cleanResults();
 
 	logger.log( 'Adding tests...' );
 
@@ -564,7 +438,7 @@ async function endRun( req, res ) {
 	// Save errors
 	logger.log( 'Cleaning errors...' );
 
-	sqlCleanErrors.run( run.runId );
+	run.cleanErrors();
 
 	for ( const testName in errors ) {
 
@@ -582,54 +456,32 @@ async function endRun( req, res ) {
 
 
 	// Step 12:
-	// Save dependencies tree if no base available or if a base itself (or delta)
-	const baseResult = shell.exec( `git log --max-count=1 --oneline ${sha}`, { cwd: threejsGitPath, encoding: 'utf8', silent: true } );
+	// Get all 'touched' files
+	const allResults = glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) );
+	const allDeps = allResults.reduce( ( all, file ) => {
 
-	if ( ! baseSha || ! run.baselineRun || baseResult.stdout.includes( 'Updated builds.' ) === true || /\br1[0-9]{2}\b/.test( baseResult.stdout ) === true ) {
+		const ex = path.basename( file )
+			.replace( 'examples_', 'examples/' )
+			.replace( `_parsed-${sha}.json`, '.html' );
 
-		// no baseline? -> save everything
+		const deps = readFilenames( file, file.replace( '_parsed', '_packed' ) );
 
-		logger.debug( 'stdout:', baseResult.stdout );
+		if ( deps.length > 0 )
+			all[ ex ] = deps;
+		return all;
 
-		for ( const file of glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) ) ) {
+	}, {} );
 
-			const ex = path.basename( file )
-				.replace( 'examples_', 'examples/' )
-				.replace( `_parsed-${sha}.json`, '.html' );
 
-			const rev = new Revision();
-			rev.sha = sha;
-			rev.save(); // INSERT OR IGNORE
+	// Step 13:
+	// Save dependencies tree if no base is available or if this is a base itself
+	// one last check to see if maybe *this* is a base commit
+	const isThisBase = ( ! baseSha || ! run.baselineRun || isBase( sha, defaultExecOptions.cwd ) );
 
-			declareAllFilesDependencies( rev.revisionId, ex, file, file.replace( '_parsed', '_packed' ) );
+	if ( isThisBase === false ) {
 
-		}
-
-	} else { // baseline exists -> save delta
-
-		// Step 1: Load BASE dependencies
-		const baseDependencies = loadRawDependencies( run.baselineRun.revisionId );
-
-		const childDependencies = glob.sync( path.join( config.api.ci.jsonPath, 'dependencies', `*_parsed-${sha}.json` ) ).reduce( ( all, file ) => {
-
-			const ex = path.basename( file )
-				.replace( 'examples_', 'examples/' )
-				.replace( `_parsed-${sha}.json`, '.html' );
-
-			const rev = new Revision();
-			rev.sha = sha;
-			rev.save();
-
-			const filenames = readFilenames( file, file.replace( '_parsed', '_packed' ) );
-
-			if ( filenames.length > 0 )
-				all[ ex ] = filenames;
-
-			return all;
-
-		}, {} );
-
-		const delQuery = shell.exec( `git show ${sha} --name-status --oneline`, { cwd: threejsGitPath, encoding: 'utf8', silent: true } );
+		// drop deleted files from dependencies
+		const delQuery = shell.exec( `git show ${sha} --name-status --oneline`, defaultExecOptions );
 		if ( delQuery.code !== 0 ) {
 
 			logger.error( `Couldn't determine deleted files for ${sha}: ${delQuery.code} ${delQuery.stderr}` );
@@ -640,66 +492,19 @@ async function endRun( req, res ) {
 
 		}
 
-		const deleted = delQuery.stdout
-			.split( /\n/g )									// split output into lines
-			.filter( line => line.startsWith( `D	` ) )	// filter for lines like 'D	foo'
-			.map( line => line.replace( 'D	', '' ) );		// cut those lines down to name
-
-		const delta = createDependenciesDelta( baseDependencies, childDependencies, deleted );
-
-		console.log( delta );
-
-		const queryNull = db.prepare( 'INSERT OR IGNORE INTO dependencies (revisionId, srcFileId, depFileId, value) VALUES( ?, ?, ?, NULL )' );
-
-		// NULL all in-base-but-not-in-child dependencies
-		Object.keys( delta.inBaseNotChild ).forEach( srcFile => {
-
-			const source = File.loadByName( srcFile );
-
-			delta.inBaseNotChild[ srcFile ].forEach( depFile => {
-
-				const dependency = File.loadByName( depFile );
-
-				queryNull.run( run.revisionId, source.fileId, dependency.fileId );
-
-			} );
-
-		} );
-
-		const queryAdd = db.prepare( 'INSERT OR IGNORE INTO dependencies (revisionId, srcFileId, depFileId, value ) VALUES ( ?, ?, ?, 1 )' );
-
-		// add only in-child-but-not-in-base dependencies
-		Object.keys( delta.inChildNotBase ).forEach( srcFile => {
-
-			const hack = new File();
-			hack.name = srcFile;
-			hack.save();
-
-			const source = hack.fileId; //File.loadByName( srcFile );
-
-			delta.inChildNotBase[ srcFile ].forEach( depFile => {
-
-				const moreHack = new File();
-				moreHack.name = depFile;
-				moreHack.save();
-
-				const dependency = moreHack.fileId; //File.loadByName( depFile );
-
-				queryAdd.run( run.revisionId, source.fileId, dependency.fileId );
-
-			} );
-
-		} );
+		delQuery.stdout
+			.split( /\n/g )										// split output into lines
+			.filter( line => /^D\s+/.test( line ) )				// filter for lines like 'D	foo'
+			.map( line => line.replace( /^D\s+/, '' ) )			// cut those lines down to name
+			.forEach( del => allDeps[ del ] = null );			// and set them to 'deleted' in the dependencies
 
 	}
 
-	res.status( 200 ).send( '' );
+	run.saveDependencies( allDeps, isThisBase );
+
+	res.status( 200 ).send( jsonStableStringify( allDeps ) );
 
 }
-
-
-// this is all bound to be thrown out once API & Dependencies is finalized
-// TODO: external files in PARSED.external
 
 
 // read all touched filenames from profiler-results
@@ -707,6 +512,9 @@ function readFilenames( pathParsed, pathPacked ) {
 
 	const parsed = JSON.parse( fs.readFileSync( pathParsed, 'utf8' ) );
 	const packed = JSON.parse( fs.readFileSync( pathPacked, 'utf8' ) );
+
+	// FIXME: stop this once every run has a 'local' prop
+	const local = ( typeof packed[ 'local' ] !== 'undefined' ) ? packed.local : [];
 
 	const uniq = parsed.uniq;
 
@@ -723,53 +531,26 @@ function readFilenames( pathParsed, pathPacked ) {
 
 	}, [] );
 
-	return [ ...uniq, ...coverage, ...shaderChunks, ...shaderLibs ].filter( ( name, i, a ) => a.indexOf( name ) === i );
+	return [ ...local, ...uniq, ...coverage, ...shaderChunks, ...shaderLibs ].filter( ( name, i, a ) => a.indexOf( name ) === i );
 
 }
 
-/**
- * Mass-insert all files referenced in an example's
- * results and set them up as dependecies
- * @param {number} revisionId
- * @param {string} sourceFile Relative path of the example used
- * @param {string} pathParsed Path to the examples_*_parsed.json file
- * @param {string} pathPacked Path to the examples_*_packed.json file
- */
-function declareAllFilesDependencies( revisionId, sourceFile, pathParsed, pathPacked ) {
+function _readResults( sha, category ) {
 
-	const filenames = readFilenames( pathParsed, pathPacked );
+	return ( results, entry ) => {
 
-	for ( const filename of filenames ) {
+		results[ entry ] = fs.promises.readFile( path.join( config.api.ci.jsonPath, category, `${entry}-${sha}.json` ), 'utf8' )
+			.then( json => JSON.parse( json ) )
+			.catch( err => {
 
-		const file = new File();
-		file.name = filename;
-		file.save();
+				logger.fatal( err );
 
-	}
+				throw err;
 
-	const file = new File();
-	file.name = sourceFile;
-	file.save();
-
-	const srcFileId = file.fileId;
-
-	const sqlInsertDependency = db.prepare( `INSERT OR IGNORE INTO dependencies (revisionId, srcFileId, depFileId, value)
-	VALUES ( $revisionId, $srcFileId, (SELECT fileId FROM files WHERE name = $depFilename), 1 );` );
-
-	const bulkInsert = db.transaction( deps => {
-
-		for ( const dep of deps ) {
-
-			sqlInsertDependency.run( {
-				revisionId,
-				srcFileId,
-				depFilename: dep
 			} );
 
-		}
+		return results;
 
-	} );
-
-	bulkInsert( filenames );
+	};
 
 }
