@@ -352,8 +352,8 @@ async function endRun( req, res ) {
 
 	// Step 8:
 	// Augment current overview with comparisons to parent and baseline data if available
-	const baselineOverview = run.baselineRun.overview || new Overview();
-	const parentOverview = run.parentRun.overview || new Overview();
+	const baselineOverview = ( run.baselineRun ) ? run.baselineRun.overview : new Overview();
+	const parentOverview = ( run.parentRun ) ? run.parentRun.overview : new Overview();
 
 	for ( const key of Object.keys( overview ) ) {
 
@@ -500,7 +500,11 @@ async function endRun( req, res ) {
 
 	}
 
+	logger.debug( 'Saving deps...' );
+
 	run.saveDependencies( allDeps, isThisBase );
+
+	logger.log( 'Deps saved' );
 
 	res.status( 200 ).send( jsonStableStringify( allDeps ) );
 
