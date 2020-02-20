@@ -621,19 +621,31 @@ class Run {
 		// everything in child dependencies but not in base gets stored in the DB
 		Object.keys( childDependencies ).forEach( srcFile => {
 
-			if ( srcFile in baseDependencies === false || childDependencies[ srcFile ] !== null ) {
+			if ( srcFile in baseDependencies === false ) {
 
+				// it's all new, save it
 				inChildNotBase[ srcFile ] = childDependencies[ srcFile ];
 
+			} else if ( childDependencies[ srcFile ] !== null ) {
+
+				// it's not new, but we might have updated dependencies
+				// check if it's identical
+				const sortedBase = baseDependencies[ srcFile ];
+				sortedBase.sort();
+
+				const sortedChild = childDependencies[ srcFile ];
+				sortedChild.sort();
+
+				if (
+					sortedBase.length === sortedChild.length &&
+					sortedBase.every( ( d, i ) => sortedChild.indexOf( d ) === i ) &&
+					sortedChild.every( ( d, i ) => sortedBase.indexOf( d ) === i )
+				)
+					return; // identical dependencies, skip
+				else
+					inChildNotBase[ srcFile ] = childDependencies[ srcFile ]; // something differs, save all
+
 			}
-			// again no diffing, either it's listed in childDependencies or it isn't required.
-			/*  else {
-
-				const diff = childDependencies[ srcFile ].filter( d => baseDependencies[ srcFile ].includes( d ) === false );
-				if ( diff.length > 0 )
-					inChildNotBase[ srcFile ] = diff;
-
-			} */
 
 		} );
 
