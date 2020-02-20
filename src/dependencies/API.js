@@ -13,13 +13,29 @@ const { Signale } = require( 'signale' );
 const logger = new Signale( { scope: 'API Dependencies', config: { displayTimestamp: true, displayDate: true } } );
 
 
-// ----------------------------------------------------------------------------------------------------------- //
+// import API endpoints
+const dependencies = require( './dependencies' );
 
+Object.entries( dependencies.routes ).forEach( ( [ route, handler ] ) => {
+
+	logger.log( `Adding route for ${route}...` );
+
+	app.get( route, ( req, res, next ) => {
+
+		logger.debug( 'Route:', route, 'Params:', req.params, 'Query:', req.query );
+
+		return handler( req, res, next );
+
+	} );
+
+} );
+
+// ----------------------------------------------------------------------------------------------------------- //
 
 // default route
 app.get( '*', ( req, res ) => {
 
-	logger.debug( '/*' );
+	logger.debug( '/*', req.params, req.query );
 
 	res.sendStatus( 404 );
 

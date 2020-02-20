@@ -247,6 +247,3 @@ function getDependencies( req, res ) {
 	}
 
 }
-
-module.exports = { getDependencies };
-
