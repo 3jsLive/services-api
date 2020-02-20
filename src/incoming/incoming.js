@@ -352,8 +352,8 @@ async function endRun( req, res ) {
 
 	// Step 8:
 	// Augment current overview with comparisons to parent and baseline data if available
-	const baselineOverview = ( run.baselineRunId ) ? Overview.loadByRunId( run.baselineRunId ) : new Overview();
-	const parentOverview = ( run.parentRunId ) ? Overview.loadByRunId( run.parentRunId ) : new Overview();
+	const baselineOverview = run.baselineRun.overview || new Overview();
+	const parentOverview = run.parentRun.overview || new Overview();
 
 	for ( const key of Object.keys( overview ) ) {
 
