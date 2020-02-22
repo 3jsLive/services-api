@@ -14,8 +14,8 @@ const { Signale } = require( 'signale' );
 const logger = new Signale( { scope: 'API Dependencies', config: { displayTimestamp: true, displayDate: true } } );
 
 // DB
-const Database = require( 'better-sqlite3' );
-const db = new Database( path.join( config.root, config.api.database ), { fileMustExist: true/* , verbose: console.log */ } );
+// const Database = require( 'better-sqlite3' );
+// const db = new Database( path.join( config.root, config.api.database ), { fileMustExist: true/* , verbose: console.log */ } );
 
 
 const routes = {
@@ -62,7 +62,7 @@ function getDependencies( req, res ) {
 	// If we can't find a suitable answer, we'll just send every examples the requested revision has to offer
 	const allExamplesOfRevision = [];
 	const fullResult = shell.exec(
-		`git ls-tree --name-only --full-name --full-tree ${req.params.sha} examples/*_*.html`,
+		`git ls-tree --name-only --full-name --full-tree ${req.params.sha} examples/ | grep _`,
 		{ cwd: gitDir, encoding: 'utf8', silent: true }
 	);
 	if ( fullResult.code === 0 ) {
@@ -125,7 +125,7 @@ function getDependencies( req, res ) {
 
 	// Step 2:
 	// Do we have a run for this SHA? Get its dependencies tree
-	let queryResult = [];
+	let queryResult;
 	try {
 
 		const parentRev = Revision.loadBySHA( parentSha );
@@ -138,20 +138,7 @@ function getDependencies( req, res ) {
 
 		logger.debug( `Request: SHA ${req.params.sha} has PARENT ${parentSha} -> PARENT-REVID ${parentRev.revisionId} and BASE-REVID ${baseRevId}` );
 
-		const query = db.prepare( `SELECT srcFileId, value, filesSrc.name src, JSON_GROUP_ARRAY( filesDep.name ) deps
-		FROM
-		(
-			SELECT * FROM dependencies WHERE (revisionId = $parent OR revisionId = $base)
-			ORDER BY CASE revisionId
-				WHEN $parent THEN 1
-				WHEN $base THEN 0
-			END
-		)
-		LEFT JOIN files filesSrc ON filesSrc.fileId = srcFileId
-		LEFT JOIN files filesDep ON filesDep.fileId = depFileId
-		GROUP BY srcFileId HAVING value` );
-
-		queryResult = query.all( { parent: parentRev.revisionId, base: baseRevId } );
+		queryResult = parentRun.getDependencies();
 
 	} catch ( err ) {
 
@@ -165,28 +152,28 @@ function getDependencies( req, res ) {
 	}
 
 
-	if ( queryResult.length === 0 ) {
+	// if ( queryResult.length === 0 ) {
 
-		logger.error( `Something went wrong while requesting deptree for ${req.params.sha}` );
+	// 	logger.error( `Something went wrong while requesting deptree for ${req.params.sha}` );
 
-		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
+	// 	res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
-		return false;
+	// 	return false;
 
-	}
+	// }
 
 	// logger.debug( queryResult.map( r => `${r.src} depends on ${r.deps}` ).join( '\n' ) );
 
 	// reduce queryResult to hash
 	// not very efficient, but it works
-	const depTree = queryResult.reduce( ( all, cur ) => {
+	const depTree = Object.keys( queryResult ).reduce( ( all, example ) => {
 
-		JSON.parse( cur.deps ).forEach( dep => {
+		queryResult[ example ].forEach( dep => {
 
 			all[ dep ] = all[ dep ] || [];
 
-			if ( all[ dep ].includes( cur.src ) === false )
-				all[ dep ].push( cur.src );
+			if ( all[ dep ].includes( example ) === false )
+				all[ dep ].push( example );
 
 		} );
 
@@ -195,8 +182,6 @@ function getDependencies( req, res ) {
 	}, {} );
 
 	Object.keys( depTree ).forEach( key => depTree[ key ].sort() );
-
-	// logger.debug( depTree );
 
 
 	// Step 3:

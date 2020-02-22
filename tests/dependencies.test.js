@@ -98,7 +98,7 @@ describe( `dependencies`, function () {
 
 				assert.strictEqual( ret, goldDeps.result );
 
-				if ( goldDeps.result === true ) {
+				if ( 'todo' in goldDeps ) {
 
 					goldDeps.todo.sort();
 					assert.deepEqual( JSON.parse( retval ), goldDeps.todo );
