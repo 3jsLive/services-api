@@ -327,7 +327,7 @@ describe( `helpers / Run`, function () {
 
 	} );
 
-	it( 'saveDependencies, existing base run', function () {
+	it( 'saveDependencies, existing base run, one changed and one deleted dependency', function () {
 
 		const run3 = Run.loadByRunId( 3 );
 
@@ -339,6 +339,46 @@ describe( `helpers / Run`, function () {
 
 		const gold3 = {
 			'example1': [ 'source4', 'source5' ]
+		};
+
+		const test3 = run3.getDependencies();
+
+		assert.deepStrictEqual( test3, gold3 );
+
+	} );
+
+	it( 'saveDependencies, existing base run, one changed and one identical dependency', function () {
+
+		const run3 = Run.loadByRunId( 3 );
+
+		const dependencies3 = {
+			'example1': [ 'source4', 'source5' ],
+			'example2': [ 'source1', 'source2' ]
+		};
+		run3.saveDependencies( dependencies3 );
+
+		const gold3 = {
+			'example1': [ 'source4', 'source5' ],
+			'example2': [ 'source1', 'source2' ]
+		};
+
+		const test3 = run3.getDependencies();
+
+		assert.deepStrictEqual( test3, gold3 );
+
+	} );
+
+	it( 'saveDependencies, existing base run, one completely new dependency', function () {
+
+		const run3 = Run.loadByRunId( 3 );
+
+		const dependencies3 = {
+			'example3': [ 'source4', 'source5' ]
+		};
+		run3.saveDependencies( dependencies3 );
+
+		const gold3 = {
+			'example3': [ 'source4', 'source5' ]
 		};
 
 		const test3 = run3.getDependencies();
