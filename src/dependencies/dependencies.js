@@ -5,6 +5,7 @@ const shell = require( 'shelljs' );
 const Run = require( '../helpers/Run' );
 const Revision = require( '../helpers/Revision' );
 const { getParent, isBase } = require( '../helpers/History' ); // Not actually a class
+const Dependencies = require( '../helpers/Dependencies' );
 
 // config.api.dependencies.*
 const config = require( 'rc' )( '3cidev' );
@@ -125,24 +126,24 @@ function getDependencies( req, res ) {
 
 	// Step 2:
 	// Do we have a run for this SHA? Get its dependencies tree
-	let queryResult;
+	let parentRev, baseRevId;
 	try {
 
-		const parentRev = Revision.loadBySHA( parentSha );
+		// load parent run for its revision id
+		parentRev = Revision.loadBySHA( parentSha );
 		const parentRun = Run.loadByRevisionId( parentRev.revisionId );
 
-		const baseRevId = ( parentRun.baselineRun !== null ) ? parentRun.baselineRun.revisionId : - 1;
+		// get base run revision id
+		baseRevId = ( parentRun.baselineRun !== null ) ? parentRun.baselineRun.revisionId : - 1;
 
 		if ( baseRevId === - 1 )
 			logger.debug( `parentRun #${parentRun.runId} has no baseline` );
 
 		logger.debug( `Request: SHA ${req.params.sha} has PARENT ${parentSha} -> PARENT-REVID ${parentRev.revisionId} and BASE-REVID ${baseRevId}` );
 
-		queryResult = parentRun.getDependencies();
-
 	} catch ( err ) {
 
-		logger.fatal( 'Error deptree:', err );
+		logger.fatal( 'Error parent revision:', err );
 
 		// again, fail open
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
@@ -152,70 +153,24 @@ function getDependencies( req, res ) {
 	}
 
 
-	// if ( queryResult.length === 0 ) {
-
-	// 	logger.error( `Something went wrong while requesting deptree for ${req.params.sha}` );
-
-	// 	res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
-
-	// 	return false;
-
-	// }
-
-	// logger.debug( queryResult.map( r => `${r.src} depends on ${r.deps}` ).join( '\n' ) );
-
-	// reduce queryResult to hash
-	// not very efficient, but it works
-	const depTree = Object.keys( queryResult ).reduce( ( all, example ) => {
-
-		queryResult[ example ].forEach( dep => {
-
-			all[ dep ] = all[ dep ] || [];
-
-			if ( all[ dep ].includes( example ) === false )
-				all[ dep ].push( example );
-
-		} );
-
-		return all;
-
-	}, {} );
-
-	Object.keys( depTree ).forEach( key => depTree[ key ].sort() );
-
-
 	// Step 3:
 	// Ask git what changed between the parent and the current commit
 	// TODO: ask first, *then* create depTree for better performance?
-	const retval = shell.exec( `git diff --name-only ${req.params.sha} ${parentSha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
+	const retval = shell.exec( `git diff --name-status ${req.params.sha} ${parentSha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
 
 	if ( retval.code === 0 ) {
 
-		const files = retval.stdout.split( /\n/g );
+		// parse the git output
+		const actions = Dependencies.parseGitDiff( retval.stdout );
 
-		// instead: just a list of examples. nothing more.
-		const todo = files.reduce( ( all, touchedFile ) => {
 
-			// obvs skip files we don't know
-			if ( touchedFile in depTree === false ) {
+		// load merged dependencies
+		const deps = Dependencies.loadByRevisionId( parentRev.revisionId, baseRevId );
+		const depTree = Dependencies.reformatToDependencyBased( deps );
 
-				if ( touchedFile.endsWith( '.html' ) === true ) // unless it's an example, then add it
-					all.push( touchedFile );
 
-			} else {
-
-				// push all that aren't yet in it
-				all.push( ...( depTree[ touchedFile ].filter( d => all.includes( d ) === false ) ) );
-
-			}
-
-			return all;
-
-		}, [] );
-
-		// logger.debug( todo );
-
-		todo.sort();
+		// get it all together
+		const todo = Dependencies.compareWithGitDiff( depTree, actions );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( todo ) );
 

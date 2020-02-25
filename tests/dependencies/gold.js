@@ -375,12 +375,7 @@ module.exports = {
 	// parent does exist, as does base, but no examples need to be processed
 	"7a2f944a235e8c27141c5fb15675827d7f858b5d": {
 		result: true,
-		todo: [
-			"docs/api/en/extras/ImageUtils.html",
-			"docs/api/en/extras/PMREMGenerator.html",
-			"docs/api/zh/extras/ImageUtils.html",
-			"docs/api/zh/extras/PMREMGenerator.html"
-		]
+		todo: []
 	},
 
 	// parent does not exist, neither does base (literally, it has no parents)
