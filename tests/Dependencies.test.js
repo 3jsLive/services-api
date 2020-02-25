@@ -243,6 +243,27 @@ t.test( `helpers / Dependencies`, t => {
 
 		} );
 
+		t.test( 'added', t => {
+
+			const retval = shell.exec(
+				`git diff --name-status e11983171f2eaa26bbf2cca8482765db92691988 a3ca9ba6ea729bfaaf7213cac4fbff1273934a8d`,
+				{ encoding: 'utf8', silent: true, cwd: `${config.root}/${config.threejsRepository}/.git` }
+			);
+
+			// const data = fs.readFileSync( `${__dirname}/helpers/Dependencies/real-test-2.sql`, 'utf8' );
+
+			// testDatabase.exec( dbSchema );
+			// testDatabase.exec( `PRAGMA foreign_keys = '0';` );
+			// testDatabase.exec( data );
+
+			/* const actions = */ Dependencies.parseGitDiff( retval.stdout );
+
+			t.todo( 'needs deps run first' );
+
+			t.end();
+
+		} );
+
 		t.end();
 
 	} );
