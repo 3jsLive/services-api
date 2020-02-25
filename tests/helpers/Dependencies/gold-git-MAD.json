@@ -1,0 +1,10 @@
+{
+	"deleted": [ "examples/webgl_geometry_compression.html" ],
+	"modified": [ "examples/files.js" ],
+	"added": [ "examples/webgl_buffergeometry_compression.html" ],
+	"all": [
+		"examples/files.js",
+		"examples/webgl_buffergeometry_compression.html",
+		"examples/webgl_geometry_compression.html"
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"deleted": [ "examples/screenshots/webgl_materials_reflectivity.png" ],
+	"modified": [ "examples/screenshots/misc_controls_drag.png", "examples/screenshots/webgl_lightshafts.png" ],
+	"added": [ "examples/screenshots/webgl_materials_physical_reflectivity.png" ],
+	"all": [
+		"examples/screenshots/misc_controls_drag.png",
+		"examples/screenshots/webgl_lightshafts.png",
+		"examples/screenshots/webgl_materials_physical_reflectivity.png",
+		"examples/screenshots/webgl_materials_reflectivity.png"
+	]
+}

@@ -1,0 +1,23 @@
+{
+	"1": {
+		"srcFileId": 1,
+		"srcFile": "example1",
+		"depFileId": 4,
+		"depFile": "source1",
+		"active": true
+	},
+	"2": {
+		"srcFileId": 1,
+		"srcFile": "example1",
+		"depFileId": 5,
+		"depFile": "source2",
+		"active": true
+	},
+	"3": {
+		"srcFileId": 1,
+		"srcFile": "example1",
+		"depFileId": 6,
+		"depFile": "source3",
+		"active": true
+	}
+}

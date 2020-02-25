@@ -1,0 +1,3 @@
+M       examples/files.js
+A       examples/webgl_buffergeometry_compression.html
+D       examples/webgl_geometry_compression.html

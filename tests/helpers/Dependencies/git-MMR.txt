@@ -1,0 +1,3 @@
+M       examples/screenshots/misc_controls_drag.png
+M       examples/screenshots/webgl_lightshafts.png
+R100    examples/screenshots/webgl_materials_reflectivity.png   examples/screenshots/webgl_materials_physical_reflectivity.png

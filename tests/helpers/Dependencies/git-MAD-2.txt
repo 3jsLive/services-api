@@ -1,0 +1,3 @@
+A       examples/jsm/textures/FlakeTexture.js
+D       examples/textures/flakes.png
+M       examples/webgl_materials_physical_clearcoat.html

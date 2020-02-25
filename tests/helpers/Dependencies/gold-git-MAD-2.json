@@ -1,0 +1,10 @@
+{
+	"deleted": [ "examples/textures/flakes.png" ],
+	"modified": [ "examples/webgl_materials_physical_clearcoat.html" ],
+	"added": [ "examples/jsm/textures/FlakeTexture.js" ],
+	"all": [
+		"examples/jsm/textures/FlakeTexture.js",
+		"examples/textures/flakes.png",
+		"examples/webgl_materials_physical_clearcoat.html"
+	]
+}
