@@ -1,7 +1,7 @@
 const fs = require( 'fs' );
 const sqlite = require( 'better-sqlite3' );
 
-const assert = require( 'assert' );
+const t = require( 'tap' );
 
 const testDatabase = new sqlite( `tests`, { memory: true } );
 const Database = require( '../src/Database' ); // rigging
@@ -13,61 +13,69 @@ const dbData = fs.readFileSync( `${__dirname}/helpers/File/data.sql`, 'utf8' );
 const File = require( '../src/helpers/File' );
 
 
-describe( `helpers / File`, function () {
+t.test( `helpers / File`, t => {
 
-	beforeEach( 'clean slate', function () {
+	t.beforeEach( ( done/* , t */ ) => {
 
 		testDatabase.exec( `PRAGMA foreign_keys = '0';` );
 		testDatabase.exec( dbSchema );
 		testDatabase.exec( dbData );
 		testDatabase.exec( `PRAGMA foreign_keys = '1';` );
 
+		done();
+
 	} );
 
-	it( 'loadBy*', function () {
+	t.test( 'loadBy*', t => {
 
 		const file1 = File.loadByFileId( 1 );
 		const file2 = File.loadByName( 'example1' );
 
-		assert.strictEqual( file1.fileId, 1 );
-		assert.strictEqual( file1.name, 'example1' );
-		assert.deepStrictEqual( file1, file2 );
+		t.strictEqual( file1.fileId, 1 );
+		t.strictEqual( file1.name, 'example1' );
+		t.strictSame( file1, file2 );
 
 		const file3 = File.loadByFileId( 2 );
-		assert.notDeepStrictEqual( file1, file3 );
+		t.notStrictSame( file1, file3 );
 
-		assert.throws( () => File.loadByFileId( 999 ), { name: 'Error' } );
-		assert.throws( () => File.loadByName( 'does not exist' ), { name: 'Error' } );
+		t.throws( () => File.loadByFileId( 999 ), { name: 'Error' } );
+		t.throws( () => File.loadByName( 'does not exist' ), { name: 'Error' } );
+
+		t.end();
 
 	} );
 
-	it( 'loadAll, success', function () {
+	t.test( 'loadAll, success', t => {
 
 		const files = File.loadAll();
 
-		assert.strictEqual( files.length, 3 );
+		t.strictEqual( files.length, 3 );
 
-		assert.ok( files[ 0 ] instanceof File );
-		assert.ok( files[ 1 ] instanceof File );
-		assert.ok( files[ 2 ] instanceof File );
+		t.ok( files[ 0 ] instanceof File );
+		t.ok( files[ 1 ] instanceof File );
+		t.ok( files[ 2 ] instanceof File );
 
-		assert.strictEqual( files[ 0 ].fileId, 1 );
-		assert.strictEqual( files[ 0 ].name, 'example1' );
+		t.strictEqual( files[ 0 ].fileId, 1 );
+		t.strictEqual( files[ 0 ].name, 'example1' );
+
+		t.end();
 
 	} );
 
-	it( 'loadAll, failure', function () {
+	t.test( 'loadAll, failure', t => {
 
 		testDatabase.exec( 'DELETE FROM files WHERE 1' );
 
-		assert.doesNotThrow( () => File.loadAll() );
+		t.doesNotThrow( () => File.loadAll() );
 
 		const noFiles = File.loadAll();
-		assert.deepStrictEqual( noFiles, [] );
+		t.strictSame( noFiles, [] );
+
+		t.end();
 
 	} );
 
-	it( 'save', function () {
+	t.test( 'save', t => {
 
 		const fileNew = new File();
 		fileNew.name = 'new file';
@@ -75,11 +83,15 @@ describe( `helpers / File`, function () {
 
 		const fileNewCheck = File.loadByName( 'new file' );
 
-		assert.deepStrictEqual( fileNewCheck, fileNew );
+		t.strictSame( fileNewCheck, fileNew );
 
-		assert.strictEqual( fileNew.fileId, 4 );
-		assert.strictEqual( fileNew.name, 'new file' );
+		t.strictEqual( fileNew.fileId, 4 );
+		t.strictEqual( fileNew.name, 'new file' );
+
+		t.end();
 
 	} );
+
+	t.end();
 
 } );

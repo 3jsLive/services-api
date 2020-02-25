@@ -1,304 +1,332 @@
 const fs = require( 'fs' );
 const sqlite = require( 'better-sqlite3' );
 
-const assert = require( 'assert' );
+const t = require( 'tap' );
 
-const testDatabase = new sqlite( `tests`, { memory: true } );
-const Database = require( '../src/Database' ); // rigging
-Database._db = testDatabase;
+t.test( `helpers / Run`, t => {
 
-const dbSchema = fs.readFileSync( `${__dirname}/../src/schema.sql`, 'utf8' );
-const dbData = fs.readFileSync( `${__dirname}/helpers/Run/data.sql`, 'utf8' );
+	const testDatabase = new sqlite( `Run.tests.db`, { memory: true } );
 
-const Run = require( '../src/helpers/Run' );
-const Revision = require( '../src/helpers/Revision' );
-const Overview = require( '../src/helpers/Overview' );
+	const Database = require( '../src/Database' ); // rigging
+	Database._db = testDatabase;
 
+	const Run = require( '../src/helpers/Run' );
+	const Revision = require( '../src/helpers/Revision' );
+	const Overview = require( '../src/helpers/Overview' );
 
-describe( `helpers / Run`, function () {
+	const dbSchema = fs.readFileSync( `${__dirname}/../src/schema.sql`, 'utf8' );
+	const dbData = fs.readFileSync( `${__dirname}/helpers/Run/data.sql`, 'utf8' );
 
-	beforeEach( 'clean slate', function () {
+	t.beforeEach( ( done/* , t */ ) => {
 
 		testDatabase.exec( `PRAGMA foreign_keys = '0';` );
 		testDatabase.exec( dbSchema );
 		testDatabase.exec( dbData );
 		testDatabase.exec( `PRAGMA foreign_keys = '1';` );
 
+		done();
+
 	} );
 
-	describe( 'Setters/Getters', function () {
+	t.test( 'Setters/Getters', t => {
 
-		beforeEach( 'Setup', function () {
+		t.beforeEach( ( done/* , t */ ) => {
 
 			this.run = Run.loadByRunId( 1 );
 
+			done();
+
 		} );
 
-		it( 'revision', function () {
+		t.test( 'revision', t => {
 
 			// Getter
 			const revision = this.run.revision;
 			const gold = Revision.loadByRevisionId( 1 );
 
-			assert.deepEqual( revision, gold );
+			t.same( revision, gold );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.revision = {};
 
 			}, { name: 'Error' } );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.revision = null;
 
 			} );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.revision = Revision.loadByRevisionId( 1 );
 
 			} );
 
+			t.end();
+
 		} );
 
-		it( 'revisionId', function () {
+		t.test( 'revisionId', t => {
 
 			// Getter
 			const revisionId = this.run.revisionId;
 			const gold = Revision.loadByRevisionId( 1 );
 
-			assert.strictEqual( revisionId, gold.revisionId );
+			t.strictSame( revisionId, gold.revisionId );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.revisionId = - 1;
 
 			}, { name: 'Error' } );
 
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.revisionId = 1;
 
 			}, { name: 'Error' } );
 
+			t.end();
+
 		} );
 
-		it( 'parentRun', function () {
+		t.test( 'parentRun', t => {
 
 			// Getter
 			const parentRun = this.run.parentRun;
-			assert.strictEqual( parentRun, null );
+			t.strictSame( parentRun, null );
 
 			const run2 = Run.loadByRunId( 2 );
 			const gold = Run.loadByRunId( 1 );
-			assert.deepEqual( run2.parentRun, gold );
+			t.same( run2.parentRun, gold );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.parentRun = {};
 
 			}, { name: 'Error' } );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.parentRun = null;
 
 			} );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.parentRun = Run.loadByRevisionId( 1 );
 
 			} );
 
+			t.end();
+
 		} );
 
-		it( 'parentRunId', function () {
+		t.test( 'parentRunId', t => {
 
 			// Getter
-			assert.strictEqual( this.run.parentRunId, null );
+			t.same( this.run.parentRunId, null );
 
 			const run2 = Run.loadByRunId( 2 );
-			assert.strictEqual( run2.parentRunId, 1 );
+			t.strictSame( run2.parentRunId, 1 );
 
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.parentRunId = - 1;
 
 			}, { name: 'Error' } );
 
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.parentRunId = 1;
 
 			}, { name: 'Error' } );
 
+			t.end();
+
 		} );
 
-		it( 'baselineRun', function () {
+		t.test( 'baselineRun', t => {
 
 			// Getter
 			const baselineRun = this.run.baselineRun;
-			assert.strictEqual( baselineRun, null );
+			t.strictEqual( baselineRun, null );
 
 			const run2 = Run.loadByRunId( 2 );
 			const gold = Run.loadByRunId( 1 );
-			assert.deepEqual( run2.baselineRun, gold );
+			t.deepEqual( run2.baselineRun, gold );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.baselineRun = {};
 
 			}, { name: 'Error' } );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.baselineRun = null;
 
 			} );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.baselineRun = Run.loadByRevisionId( 1 );
 
 			} );
 
+			t.end();
+
 		} );
 
-		it( 'baselineRunId', function () {
+		t.test( 'baselineRunId', t => {
 
 			// Getter
-			assert.strictEqual( this.run.baselineRunId, null );
+			t.strictEqual( this.run.baselineRunId, null );
 
 			const run2 = Run.loadByRunId( 2 );
-			assert.deepEqual( run2.baselineRunId, 1 );
+			t.deepEqual( run2.baselineRunId, 1 );
 
 
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.baselineRunId = - 1;
 
 			}, { name: 'Error' } );
 
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.baselineRunId = 1;
 
 			}, { name: 'Error' } );
 
+			t.end();
+
 		} );
 
-		it( 'overview', function () {
+		t.test( 'overview', t => {
 
 			// Getter
 			const overview = this.run.overview;
-			assert.strictEqual( overview, null );
+			t.strictEqual( overview, null );
 
 			const run2 = Run.loadByRunId( 2 );
 			const gold = Overview.loadById( 1 );
-			assert.deepEqual( run2.overview, gold );
+			t.deepEqual( run2.overview, gold );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.overview = {};
 
 			}, { name: 'Error' } );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.overview = null;
 
 			} );
 
-			assert.doesNotThrow( () => {
+			t.doesNotThrow( () => {
 
 				this.run.overview = Overview.loadById( 1 );
 
 			} );
 
+			t.end();
+
 		} );
 
-		it( 'overviewId', function () {
+		t.test( 'overviewId', t => {
 
 			// Getter
-			assert.strictEqual( this.run.overviewId, null );
+			t.strictEqual( this.run.overviewId, null );
 
 			const run2 = Run.loadByRunId( 2 );
 			const gold = Overview.loadById( 1 );
-			assert.deepEqual( run2.overviewId, gold.overviewId );
+			t.deepEqual( run2.overviewId, gold.overviewId );
 
 			// Setter
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.overviewId = - 1;
 
 			}, { name: 'Error' } );
 
-			assert.throws( () => {
+			t.throws( () => {
 
 				this.run.overviewId = 1;
 
 			}, { name: 'Error' } );
 
+			t.end();
+
 		} );
 
-		it( 'lazy loads', function () {
+		t.test( 'lazy loads', t => {
 
 			const run = new Run();
 
 			run._baselineRun = 2;
 
-			assert.strictEqual( run._baselineRun, 2 );
+			t.strictEqual( run._baselineRun, 2 );
 
 			const oldRun = Run.loadByRunId( 2 );
 
-			assert.deepStrictEqual( run.baselineRun, oldRun );
+			t.strictSame( run.baselineRun, oldRun );
 
-			assert.strictEqual( run.baselineRun._baselineRun, 1 );
+			t.strictEqual( run.baselineRun._baselineRun, 1 );
+
+			t.end();
 
 		} );
 
+		t.end();
+
 	} );
 
-	it( 'loadBy*', function () {
+	t.test( 'loadBy*', t => {
 
 		const run1 = Run.loadByRevisionId( 1 );
 		const run2 = Run.loadByRunId( 1 );
 
-		assert.strictEqual( run1.baselineRun, null );
-		assert.strictEqual( run1.parentRun, null );
-		assert.strictEqual( run1.overview, null );
+		t.strictEqual( run1.baselineRun, null );
+		t.strictEqual( run1.parentRun, null );
+		t.strictEqual( run1.overview, null );
 
-		assert.strictEqual( run1.revisionId, 1 );
+		t.strictEqual( run1.revisionId, 1 );
 
-		assert.deepStrictEqual( run1, run2 );
+		t.strictSame( run1, run2 );
 
-		assert.throws( () => Run.loadByRevisionId( - 1 ), { name: 'Error' } );
-		assert.throws( () => Run.loadByRunId( - 1 ), { name: 'Error' } );
+		t.throws( () => Run.loadByRevisionId( - 1 ), { name: 'Error' } );
+		t.throws( () => Run.loadByRunId( - 1 ), { name: 'Error' } );
+
+		t.end();
 
 	} );
 
-	it( 'getDependencies, missing base run', function () {
+	t.test( 'getDependencies, missing base run', t => {
 
 		const run = Run.loadByRunId( 4 );
 
-		assert.throws( () => run.getDependencies(), { name: 'Error' } );
+		t.throws( () => run.getDependencies(), { name: 'Error' } );
+
+		t.end();
 
 	} );
 
-	it( 'getDependencies, base run', function () {
+	t.test( 'getDependencies, base run', t => {
 
 		const run = Run.loadByRunId( 1 );
 
-		assert.doesNotThrow( () => run.getDependencies(), { name: 'Error' } );
+		t.doesNotThrow( () => run.getDependencies(), { name: 'Error' } );
 
 		const gold = {
 			'example1': [ 'source1', 'source2', 'source3', 'source4' ],
@@ -307,11 +335,13 @@ describe( `helpers / Run`, function () {
 
 		const deps = run.getDependencies();
 
-		assert.deepStrictEqual( deps, gold );
+		t.strictSame( deps, gold );
+
+		t.end();
 
 	} );
 
-	it( 'getDependencies, existing base run', function () {
+	t.test( 'getDependencies, existing base run', t => {
 
 		const run = Run.loadByRunId( 2 );
 
@@ -323,11 +353,22 @@ describe( `helpers / Run`, function () {
 			'example3': [ 'source1' ]
 		};
 
-		assert.deepStrictEqual( deps, gold );
+		t.strictSame( deps, gold );
+
+		t.end();
 
 	} );
 
-	it( 'saveDependencies, existing base run, one changed and one deleted dependency', function () {
+	// t.test( 'getDependencies, various', t => {
+
+	// 	const revision = Revision.loadBySHA( 'd3bb31794a4725dcb437f9b3a2f9e8857c834c4c' );
+	// 	const run = Run.loadByRevisionId( revision.revisionId );
+
+
+	// 	t.end();
+	// });
+
+	t.test( 'saveDependencies, existing base run, one changed and one deleted dependency', t => {
 
 		const run3 = Run.loadByRunId( 3 );
 
@@ -343,11 +384,13 @@ describe( `helpers / Run`, function () {
 
 		const test3 = run3.getDependencies();
 
-		assert.deepStrictEqual( test3, gold3 );
+		t.strictSame( test3, gold3 );
+
+		t.end();
 
 	} );
 
-	it( 'saveDependencies, existing base run, one changed and one identical dependency', function () {
+	t.test( 'saveDependencies, existing base run, one changed and one identical dependency', t => {
 
 		const run3 = Run.loadByRunId( 3 );
 
@@ -364,11 +407,13 @@ describe( `helpers / Run`, function () {
 
 		const test3 = run3.getDependencies();
 
-		assert.deepStrictEqual( test3, gold3 );
+		t.strictSame( test3, gold3 );
+
+		t.end();
 
 	} );
 
-	it( 'saveDependencies, existing base run, one completely new dependency', function () {
+	t.test( 'saveDependencies, existing base run, one completely new dependency', t => {
 
 		const run3 = Run.loadByRunId( 3 );
 
@@ -383,11 +428,13 @@ describe( `helpers / Run`, function () {
 
 		const test3 = run3.getDependencies();
 
-		assert.deepStrictEqual( test3, gold3 );
+		t.strictSame( test3, gold3 );
+
+		t.end();
 
 	} );
 
-	it( 'saveDependencies, wrong format for forceAll=true', function () {
+	t.test( 'saveDependencies, wrong format for forceAll=true', t => {
 
 		const run3 = Run.loadByRunId( 3 );
 
@@ -396,7 +443,7 @@ describe( `helpers / Run`, function () {
 			'example2': null
 		};
 
-		assert.doesNotThrow( () => run3.saveDependencies( dependencies, true ) );
+		t.doesNotThrow( () => run3.saveDependencies( dependencies, true ) );
 
 		const gold = {
 			'example1': [ 'source4', 'source5' ]
@@ -404,11 +451,13 @@ describe( `helpers / Run`, function () {
 
 		const test = run3.getDependencies();
 
-		assert.deepStrictEqual( test, gold );
+		t.strictSame( test, gold );
+
+		t.end();
 
 	} );
 
-	it( 'saveDependencies, no base run', function () {
+	t.test( 'saveDependencies, no base run', t => {
 
 		const run4 = Run.loadByRunId( 4 );
 
@@ -420,15 +469,17 @@ describe( `helpers / Run`, function () {
 
 		const test = run4.getDependencies();
 
-		assert.deepStrictEqual( test, dependencies );
+		t.strictSame( test, dependencies );
+
+		t.end();
 
 	} );
 
-	it( 'create a new run', function () {
+	t.test( 'create a new run', t => {
 
 		const rev = new Revision();
 		rev.sha = '0000000000000000000000000000000000000005';
-		assert.doesNotThrow( () => rev.save() );
+		t.doesNotThrow( () => rev.save() );
 
 		const run = new Run();
 
@@ -442,14 +493,18 @@ describe( `helpers / Run`, function () {
 		run.timestamp = 0;
 		run.type = null;
 
-		assert.doesNotThrow( () => run.save() );
+		t.doesNotThrow( () => run.save() );
 
-		assert.strictEqual( run.runId, 5 );
+		t.strictEqual( run.runId, 5 );
 
 		const test = Run.loadByRunId( 5 );
 
-		assert.deepStrictEqual( test, run );
+		t.strictSame( test, run );
+
+		t.end();
 
 	} );
+
+	t.end();
 
 } );

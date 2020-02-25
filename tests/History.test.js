@@ -1,235 +1,295 @@
 const path = require( 'path' );
-const assert = require( 'assert' );
+const t = require( 'tap' );
 
 const config = require( 'rc' )( '3cidev' );
 
 const History = require( '../src/helpers/History' );
 
 
-describe( `helpers / History`, function () {
+t.test( `helpers / History`, t => {
 
-	describe( 'getParent', function () {
+	t.test( 'getParent', t => {
 
-		it( 'Invalid SHA', function () {
+		t.test( 'Invalid SHA', t => {
 
-			assert.throws( () => History.getParent( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
-			assert.throws( () => History.getParent( '0123456789012345678901234567890123456xxx' ), Error );
-			assert.throws( () => History.getParent( '0123456789012345678901234567890123456' ), Error );
+			t.throws( () => History.getParent( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
+			t.throws( () => History.getParent( '0123456789012345678901234567890123456xxx' ), Error );
+			t.throws( () => History.getParent( '0123456789012345678901234567890123456' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant SHA', function () {
+		t.test( 'Non-existant SHA', t => {
 
 			const result = History.getParent( '0123456789012345678901234567890123456789' );
 
-			assert.strictEqual( result, null );
+			t.strictEqual( result, null );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant gitDir', function () {
+		t.test( 'Non-existant gitDir', t => {
 
-			assert.throws( () => History.getParent( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+			t.throws( () => History.getParent( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no gitDir', function () {
+		t.test( 'Valid SHA, no gitDir', t => {
 
 			const result = History.getParent( 'a90c4e107ff6e3b148458c96965e876f9441b147' );
 
-			assert.strictEqual( result, '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
+			t.strictEqual( result, '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no parent', function () {
+		t.test( 'Valid SHA, no parent', t => {
 
 			const result = History.getParent( '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
 
-			assert.strictEqual( result, null );
+			t.strictEqual( result, null );
+
+			t.end();
 
 		} );
 
-		it( 'Everything valid', function () {
+		t.test( 'Everything valid', t => {
 
 			// 1 parent
 			const resultSingle = History.getParent( 'a90c4e107ff6e3b148458c96965e876f9441b147', path.join( config.root, config.threejsRepository ) );
-			assert.strictEqual( resultSingle, '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
+			t.strictEqual( resultSingle, '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
 
 			// 2 parents, always gets first
 			const resultDouble = History.getParent( 'd69f9a7d7cac55a4674639f259275a5119f1bc17', path.join( config.root, config.threejsRepository ) );
-			assert.strictEqual( resultDouble, '37fef0bc2356b72d713b6b2515018c6e7bc7b559' );
+			t.strictEqual( resultDouble, '37fef0bc2356b72d713b6b2515018c6e7bc7b559' );
+
+			t.end();
 
 		} );
+
+		t.end();
 
 	} );
 
 
-	describe( 'getBase', function () {
+	t.test( 'getBase', t => {
 
-		it( 'Invalid SHA', function () {
+		t.test( 'Invalid SHA', t => {
 
-			assert.throws( () => History.getBase( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
-			assert.throws( () => History.getBase( '0123456789012345678901234567890123456xxx' ), Error );
-			assert.throws( () => History.getBase( '0123456789012345678901234567890123456' ), Error );
+			t.throws( () => History.getBase( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
+			t.throws( () => History.getBase( '0123456789012345678901234567890123456xxx' ), Error );
+			t.throws( () => History.getBase( '0123456789012345678901234567890123456' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant SHA', function () {
+		t.test( 'Non-existant SHA', t => {
 
 			const result = History.getBase( '0123456789012345678901234567890123456789' );
 
-			assert.strictEqual( result, null );
+			t.strictEqual( result, null );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant gitDir', function () {
+		t.test( 'Non-existant gitDir', t => {
 
-			assert.throws( () => History.getBase( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+			t.throws( () => History.getBase( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no gitDir', function () {
+		t.test( 'Valid SHA, no gitDir', t => {
 
 			const result = History.getBase( '6f8fe9b4c45f54c81dcf7311d8f08021bf3612ae' );
-			assert.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+			t.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no base', function () {
+		t.test( 'Valid SHA, no base', t => {
 
 			const resultFirst = History.getBase( '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
-			assert.strictEqual( resultFirst, null );
+			t.strictEqual( resultFirst, null );
 
 			const resultSecond = History.getBase( 'a90c4e107ff6e3b148458c96965e876f9441b147' );
-			assert.strictEqual( resultSecond, null );
+			t.strictEqual( resultSecond, null );
+
+			t.end();
 
 		} );
 
-		it( 'Base is release', function () {
+		t.test( 'Base is release', t => {
 
 			const result = History.getBase( '0dde0819043776d5bd7bab01e6aa229692f06fd2' );
-			assert.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+			t.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+
+			t.end();
 
 		} );
 
-		it( 'Base is commit', function () {
+		t.test( 'Base is commit', t => {
 
 			const result = History.getBase( 'f3ed73d26ab9ff99e966d40707028222754dd6b5' );
-			assert.strictEqual( result, 'cc7deb947da6451b03559a2e35e3361c1b9b3d6c' );
+			t.strictEqual( result, 'cc7deb947da6451b03559a2e35e3361c1b9b3d6c' );
+
+			t.end();
 
 		} );
 
-		it( 'Base is parent', function () {
+		t.test( 'Base is parent', t => {
 
 			const result = History.getBase( '5fd51daa8de5dba126e176af33684dba3951ba5c' );
-			assert.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+			t.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+
+			t.end();
 
 		} );
 
-		it( 'Base is first parent', function () {
+		t.test( 'Base is first parent', t => {
 
 			const result = History.getBase( 'a48ecade767935743dea67154ab4fd8221d49acd' );
-			assert.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+			t.strictEqual( result, '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
+
+			t.end();
 
 		} );
 
-		it( 'Base is second parent', function () {
+		t.test( 'Base is second parent', t => {
 
 			const result = History.getBase( 'd51c345e0bc0ac301dae82fe937757de0aac3412' );
-			assert.strictEqual( result, '71f608d9a3c09c6347b8ccdc5d331869842da41b' );
+			t.strictEqual( result, '71f608d9a3c09c6347b8ccdc5d331869842da41b' );
+
+			t.end();
 
 		} );
 
-		it( 'Commit is already base', function () {
+		t.test( 'Commit is already base', t => {
 
 			const result = History.getBase( '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
-			assert.strictEqual( result, '4834fc7b289dccf713e94abda5852eebb8bae2f1' );
+			t.strictEqual( result, '4834fc7b289dccf713e94abda5852eebb8bae2f1' );
+
+			t.end();
 
 		} );
+
+		t.end();
 
 	} );
 
 
-	describe( 'isBase', function () {
+	t.test( 'isBase', t => {
 
-		it( 'Invalid SHA', function () {
+		t.test( 'Invalid SHA', t => {
 
-			assert.throws( () => History.isBase( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
-			assert.throws( () => History.isBase( '0123456789012345678901234567890123456xxx' ), Error );
-			assert.throws( () => History.isBase( '0123456789012345678901234567890123456' ), Error );
+			t.throws( () => History.isBase( 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' ), Error );
+			t.throws( () => History.isBase( '0123456789012345678901234567890123456xxx' ), Error );
+			t.throws( () => History.isBase( '0123456789012345678901234567890123456' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant SHA', function () {
+		t.test( 'Non-existant SHA', t => {
 
 			const result = History.isBase( '0123456789012345678901234567890123456789' );
 
-			assert.strictEqual( result, false );
+			t.strictEqual( result, false );
+
+			t.end();
 
 		} );
 
-		it( 'Non-existant gitDir', function () {
+		t.test( 'Non-existant gitDir', t => {
 
-			assert.throws( () => History.isBase( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+			t.throws( () => History.isBase( '0123456789012345678901234567890123456789', '/does/not/exist/xyz' ), Error );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no gitDir', function () {
+		t.test( 'Valid SHA, no gitDir', t => {
 
 			const result = History.isBase( '6f8fe9b4c45f54c81dcf7311d8f08021bf3612ae' );
-			assert.strictEqual( result, false );
+			t.strictEqual( result, false );
+
+			t.end();
 
 		} );
 
-		it( 'Valid SHA, no base', function () {
+		t.test( 'Valid SHA, no base', t => {
 
 			const resultFirst = History.isBase( '214dd9dcfc56b0d85484d6841110fe1f089ff055' );
-			assert.strictEqual( resultFirst, false );
+			t.strictEqual( resultFirst, false );
 
 			const resultSecond = History.isBase( 'a90c4e107ff6e3b148458c96965e876f9441b147' );
-			assert.strictEqual( resultSecond, false );
+			t.strictEqual( resultSecond, false );
+
+			t.end();
 
 		} );
 
-		it( 'Base is an earlier release', function () {
+		t.test( 'Base is an earlier release', t => {
 
 			const result = History.isBase( '0dde0819043776d5bd7bab01e6aa229692f06fd2' );
-			assert.strictEqual( result, false );
+			t.strictEqual( result, false );
+
+			t.end();
 
 		} );
 
-		it( 'Base is an earlier commit', function () {
+		t.test( 'Base is an earlier commit', t => {
 
 			const result = History.isBase( 'f3ed73d26ab9ff99e966d40707028222754dd6b5' );
-			assert.strictEqual( result, false );
+			t.strictEqual( result, false );
+
+			t.end();
 
 		} );
 
-		it( 'Base as a parent', function () {
+		t.test( 'Base as a parent', t => {
 
 			// only one parent
 			const resultSingle = History.isBase( '5fd51daa8de5dba126e176af33684dba3951ba5c' );
-			assert.strictEqual( resultSingle, false );
+			t.strictEqual( resultSingle, false );
 
 			// two parents, first one is base
 			const resultFirst = History.isBase( 'a48ecade767935743dea67154ab4fd8221d49acd' );
-			assert.strictEqual( resultFirst, false );
+			t.strictEqual( resultFirst, false );
 
 			// two parents, second one is base
 			const resultSecond = History.isBase( 'd51c345e0bc0ac301dae82fe937757de0aac3412' );
-			assert.strictEqual( resultSecond, false );
+			t.strictEqual( resultSecond, false );
+
+			t.end();
 
 		} );
 
-		it( 'Commit indeed is base', function () {
+		t.test( 'Commit indeed is base', t => {
 
 			const resultRelease = History.isBase( '70438028775dd4d539ebdfdaf1aafd6fbcac43c7' );
-			assert.strictEqual( resultRelease, true );
+			t.strictEqual( resultRelease, true );
 
 			const resultUpdatedBuilds = History.isBase( '4834fc7b289dccf713e94abda5852eebb8bae2f1' );
-			assert.strictEqual( resultUpdatedBuilds, true );
+			t.strictEqual( resultUpdatedBuilds, true );
+
+			t.end();
 
 		} );
 
+		t.end();
+
 	} );
+
+	t.end();
 
 } );
