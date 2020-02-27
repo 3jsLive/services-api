@@ -7,8 +7,7 @@ t.test( `helpers / Run`, t => {
 
 	const testDatabase = new sqlite( `Run.tests.db`, { memory: true } );
 
-	const Database = require( '../src/Database' ); // rigging
-	Database._db = testDatabase;
+	require( '../src/Database' )( testDatabase ); // rigging
 
 	const Run = require( '../src/helpers/Run' );
 	const Revision = require( '../src/helpers/Revision' );
@@ -349,7 +348,7 @@ t.test( `helpers / Run`, t => {
 
 		const gold = {
 			'example1': [ 'source1', 'source2', 'source3', 'source4' ],
-			'example2': [ 'source3' ],
+			'example2': [ 'source1', 'source2', 'source3' ],
 			'example3': [ 'source1' ]
 		};
 
@@ -367,6 +366,27 @@ t.test( `helpers / Run`, t => {
 
 	// 	t.end();
 	// });
+
+	t.test( 'saveDependencies, existing base run, one deleted dependency', t => {
+
+		const run3 = Run.loadByRunId( 3 );
+
+		const dependencies3 = {
+			'example2': null
+		};
+		run3.saveDependencies( dependencies3 );
+
+		const gold3 = {
+			'example1': [ 'source1', 'source2', 'source3', 'source4' ]
+		};
+
+		const test3 = run3.getDependencies();
+
+		t.strictSame( test3, gold3 );
+
+		t.end();
+
+	} );
 
 	t.test( 'saveDependencies, existing base run, one changed and one deleted dependency', t => {
 
@@ -423,6 +443,8 @@ t.test( `helpers / Run`, t => {
 		run3.saveDependencies( dependencies3 );
 
 		const gold3 = {
+			'example1': [ 'source1', 'source2', 'source3', 'source4' ],
+			'example2': [ 'source1', 'source2' ],
 			'example3': [ 'source4', 'source5' ]
 		};
 
@@ -465,7 +487,8 @@ t.test( `helpers / Run`, t => {
 			'example1': [ 'source4', 'source5' ],
 			'example2': [ 'source1' ]
 		};
-		run4.saveDependencies( dependencies );
+
+		run4.saveDependencies( dependencies, true );
 
 		const test = run4.getDependencies();
 
@@ -500,6 +523,22 @@ t.test( `helpers / Run`, t => {
 		const test = Run.loadByRunId( 5 );
 
 		t.strictSame( test, run );
+
+		t.end();
+
+	} );
+
+	t.test( 'cleanResults*', t => {
+
+		t.todo( 'Add once Results helper is up' );
+
+		t.end();
+
+	} );
+
+	t.test( 'cleanErrors*', t => {
+
+		t.todo( 'Add once Errors helper is up' );
 
 		t.end();
 

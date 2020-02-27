@@ -1,6 +1,6 @@
 const Database = require( '../Database' );
 
-const File = require( './File' );
+const Dependencies = require( './Dependencies' );
 const Revision = require( './Revision' );
 const Overview = require( './Overview' );
 
@@ -370,10 +370,12 @@ class Run {
 	 * Fetch all dependencies, either only those saved in the DB for this particular run
 	 * or merged with its base run (default)
 	 * @returns {Object.<string, string[]>} An object with HTML files as keys and the code files they depend on as values
+	 * TODO: memoize
 	 */
 	getDependencies() {
 
-		if ( this.dependenciesChanged === 'false' ) { // augment this run's dependencies with its base
+		// augment this run's dependencies with its base
+		if ( this.dependenciesChanged === 'false' ) {
 
 			const baseRevisionId = ( this.baselineRun instanceof Run ) ? this.baselineRun.revisionId : - 1;
 
@@ -381,60 +383,16 @@ class Run {
 			if ( baseRevisionId === - 1 )
 				throw new Error( `Can't resolve dependencies because base run is missing` );
 
-			// JSON_GROUP_ARRAY?
-			const query = Run.db.prepare( `SELECT *, filesSrc.name srcFilename, filesDep.name AS depFilename
-			FROM dependencies dep1
-			LEFT JOIN files filesSrc ON filesSrc.fileId = dep1.srcFileId
-			LEFT JOIN files filesDep ON filesDep.fileId = dep1.depFileId
-			WHERE
-				(dep1.revisionId = $current AND dep1.value IS NOT NULL)
-			OR
-				(dep1.revisionId = $base AND NOT EXISTS(SELECT * FROM dependencies dep2 WHERE dep2.srcFileId = dep1.srcFileId AND dep2.revisionId = $current))` );
+			const deps = Dependencies.loadByRevisionId( this.revisionId, baseRevisionId );
 
-			const result = query.all( { current: this.revisionId, base: baseRevisionId } );
+			return Dependencies.reformatToSourceBased( deps );
 
-			// doing this via Set()s is easier
-			// TODO: Set still needed?
-			const depTree = result.reduce( ( all, cur ) => {
+		} else {
 
-				all[ cur.srcFilename ] = all[ cur.srcFilename ] || new Set();
+			// ignore base, fetch only what's saved for this run in particular
+			const deps = Dependencies.loadByRevisionId( this.revisionId );
 
-				// if ( cur.value === null )
-				// all[ cur.srcFilename ].delete( cur.depFilename );
-				// else
-				all[ cur.srcFilename ].add( cur.depFilename );
-
-				return all;
-
-			}, {} );
-
-			// even thou they require extra care here
-			Object.keys( depTree ).forEach( dep => {
-
-				depTree[ dep ] = [ ...depTree[ dep ] ];
-
-			} );
-
-			return depTree;
-
-		} else { // ignore base, fetch only what's saved for this run in particular
-
-			const query = Run.db.prepare( `SELECT srcFileId, value, filesSrc.name src, JSON_GROUP_ARRAY( filesDep.name ) deps
-				FROM dependencies
-				LEFT JOIN files filesSrc ON filesSrc.fileId = srcFileId
-				LEFT JOIN files filesDep ON filesDep.fileId = depFileId
-				WHERE dependencies.revisionId = $current
-				GROUP BY srcFileId HAVING value` );
-
-			const result = query.all( { current: this.revisionId } );
-
-			return result.reduce( ( all, cur ) => {
-
-				all[ cur.src ] = JSON.parse( cur.deps );
-
-				return all;
-
-			}, {} );
+			return Dependencies.reformatToSourceBased( deps );
 
 		}
 
@@ -450,206 +408,20 @@ class Run {
 
 		if ( this.baselineRun === null || forceAll === true ) {
 
-			// dependenciesChanged as indicator for a full save?
+			// dependenciesChanged as indicator for a full save
 			this.dependenciesChanged = 'true';
 			this.save();
 
-			// bit hacky, but we want to be sure all files have a existing DB entry
-			// because for some reason this won't work inside the transaction
-			// TODO: does this *really* not work with two inserts in a transaction? seems wrong
-			for ( const [ html, deps ] of Object.entries( dependencies ) ) {
-
-				let file = new File();
-				file.name = html;
-				file.save();
-
-				if ( deps === null ) {
-
-					console.error( 'saveDependencies: null in forceAll:', html, 'runId', this.runId );
-					continue;
-
-				}
-
-				for ( const filename of deps ) {
-
-					file = new File();
-					file.name = filename;
-					file.save();
-
-				}
-
-			}
-
-			const sqlInsertDependency = Run.db.prepare( `INSERT OR IGNORE INTO dependencies (revisionId, srcFileId, depFileId, value)
-				VALUES ( $revisionId, $srcFileId, (SELECT fileId FROM files WHERE name = $depFilename), 1 )
-				ON CONFLICT( revisionId, srcFileId, depFileid ) DO UPDATE SET value = 1` );
-
-			for ( const [ html, deps ] of Object.entries( dependencies ) ) {
-
-				if ( deps === null ) {
-
-					console.error( 'saveDependencies: null in forceAll:', html, 'runId', this.runId );
-					continue;
-
-				}
-
-				const srcFileId = File.loadByName( html ).fileId;
-
-				Run.db.transaction( deps => {
-
-					for ( const d of deps ) {
-
-						sqlInsertDependency.run( {
-							revisionId: this.revisionId,
-							srcFileId,
-							depFilename: d
-						} );
-
-					}
-
-				} )( deps );
-
-			}
-
-		} else if ( this.baselineRun !== null && forceAll === false ) {
-
-			// dependenciesChanged as indicator for a full save?
-			this.dependenciesChanged = 'false';
-			this.save();
-
-			// load base dependencies
-			const baseDependencies = this.baselineRun.getDependencies();
-
-			const delta = this._createDelta( baseDependencies, dependencies );
-
-			const queryNull = Run.db.prepare( `INSERT INTO dependencies (revisionId, srcFileId, depFileId, value)
-				VALUES ( ?, ?, ?, NULL )
-				ON CONFLICT( revisionId, srcFileId, depFileid ) DO UPDATE SET value = NULL` );
-
-			// NULL all in-base-but-not-in-child dependencies
-			Object.keys( delta.inBaseNotChild ).forEach( srcFile => {
-
-				const source = File.loadByName( srcFile );
-
-				delta.inBaseNotChild[ srcFile ].forEach( depFile => {
-
-					const dependency = File.loadByName( depFile );
-
-					queryNull.run( this.revisionId, source.fileId, dependency.fileId );
-
-				} );
-
-			} );
-
-			const queryAdd = Run.db.prepare( `INSERT INTO dependencies (revisionId, srcFileId, depFileId, value )
-			VALUES ( ?, ?, ?, 1 )
-			ON CONFLICT( revisionId, srcFileId, depFileid ) DO UPDATE SET value = 1` );
-
-			// add only in-child-but-not-in-base dependencies
-			Object.keys( delta.inChildNotBase ).forEach( srcFile => {
-
-				// make sure the file has an entry in the DB
-				const hack = new File();
-				hack.name = srcFile;
-				hack.save();
-
-				const source = hack.fileId; //File.loadByName( srcFile );
-
-				delta.inChildNotBase[ srcFile ].forEach( depFile => {
-
-					// see hack above
-					const moreHack = new File();
-					moreHack.name = depFile;
-					moreHack.save();
-
-					const dependency = moreHack.fileId; //File.loadByName( depFile );
-
-					queryAdd.run( this.revisionId, source, dependency );
-
-				} );
-
-			} );
+			Dependencies.saveDependencies( this.revisionId, dependencies );
 
 		} else {
 
-			// debug
-			console.error( { baselineRun: this.baselineRun, forceAll } );
+			this.dependenciesChanged = 'false';
+			this.save();
+
+			Dependencies.saveDependencies( this.revisionId, dependencies, this.baselineRun.getDependencies() );
 
 		}
-
-	}
-
-	/**
-	 * Create a diff between two sets of dependencies
-	 * @param {Object.<string, string[]>} baseDependencies
-	 * @param {Object.<string, string[]>} childDependencies
-	 * @returns {{ inBaseNotChild: (Object.<string, (string[]|null)>|{}), inChildNotBase: (Object.<string, (string[]|null)>|{}) }}
-	 */
-	_createDelta( baseDependencies, childDependencies ) {
-
-		// probably quicker to solve with some Set() logic
-		const inBaseNotChild = {};
-		const inChildNotBase = {};
-
-		// everything in base but not in child stays put, unless it's differing - then we ignore base
-		Object.keys( baseDependencies ).forEach( srcFile => {
-
-			if ( srcFile in childDependencies === false || childDependencies[ srcFile ] === null ) {
-
-				inBaseNotChild[ srcFile ] = baseDependencies[ srcFile ];
-
-			}
-			// diffing deprecated, all dependencies are listed or not required
-			/*  else {
-
-				if ( childDependencies[ srcFile ] === null ) { // got deleted in between
-
-					inBaseNotChild[ srcFile ] = baseDependencies[ srcFile ];
-
-				} else {
-
-					const diff = baseDependencies[ srcFile ].filter( d => childDependencies[ srcFile ].includes( d ) === false );
-					if ( diff.length > 0 )
-						inBaseNotChild[ srcFile ] = diff;
-
-				}
-
-			} */
-
-		} );
-
-		// everything in child dependencies but not in base gets stored in the DB
-		Object.keys( childDependencies ).forEach( srcFile => {
-
-			if ( srcFile in baseDependencies === false ) {
-
-				// it's all new, save it
-				inChildNotBase[ srcFile ] = childDependencies[ srcFile ];
-
-			} else if ( childDependencies[ srcFile ] !== null ) {
-
-				// it's not new, but we might have updated dependencies
-				// check if it's identical
-				const sortedBase = baseDependencies[ srcFile ];
-				sortedBase.sort();
-
-				const sortedChild = childDependencies[ srcFile ];
-				sortedChild.sort();
-
-				if (
-					sortedBase.length === sortedChild.length &&
-					sortedBase.every( ( d, i ) => sortedChild.indexOf( d ) === i ) &&
-					sortedChild.every( ( d, i ) => sortedBase.indexOf( d ) === i )
-				)
-					return; // identical dependencies, skip
-				else
-					inChildNotBase[ srcFile ] = childDependencies[ srcFile ]; // something differs, save all
-
-			}
-
-		} );
-
-		return { inBaseNotChild, inChildNotBase };
 
 	}
 
