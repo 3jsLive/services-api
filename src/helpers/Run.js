@@ -660,6 +660,6 @@ class Run {
 /**
  * @type {import( 'better-sqlite3' ).Database}
  */
-Run.db = Database.getConnection();
+Run.db = Database;
 
 module.exports = Run;

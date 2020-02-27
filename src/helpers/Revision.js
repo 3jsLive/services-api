@@ -82,6 +82,6 @@ class Revision {
 }
 
 // working around eslint/ts syntax issues
-Revision.db = Database.getConnection();
+Revision.db = Database;
 
 module.exports = Revision;

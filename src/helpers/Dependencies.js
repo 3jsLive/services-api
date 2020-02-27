@@ -222,7 +222,7 @@ class Dependencies {
 /**
  * @type {import( 'better-sqlite3' ).Database}
  */
-Dependencies.db = Database.getConnection();
+Dependencies.db = Database;
 
 
 module.exports = Dependencies;

@@ -76,7 +76,7 @@ class File {
 }
 
 // working around eslint/ts syntax issues
-File.db = Database.getConnection();
+File.db = Database;
 
 
 module.exports = File;
