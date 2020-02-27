@@ -7,9 +7,10 @@ const t = require( 'tap' );
 t.test( `helpers / Dependencies`, t => {
 
 	const testDatabase = new sqlite( `Dependencies.tests.db`, { memory: true } );
+	// const testDatabase = new sqlite( `/home/max/dev/delete-me/temp.db`, { fileMustExist: true } );
 
-	const Database = require( '../src/Database' ); // rigging
-	Database._db = testDatabase;
+	require( '../src/Database' )( testDatabase ); // rigging
+	// Database._db = testDatabase;
 
 	const shell = require( 'shelljs' );
 
@@ -263,6 +264,110 @@ t.test( `helpers / Dependencies`, t => {
 			t.end();
 
 		} );
+
+		t.end();
+
+	} );
+
+	t.test( 'saveDependencies, no delta', t => {
+
+		const dependencies = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'delete-one': [ 'script1', 'script4' ],
+			'add-one': [ 'script1' ],
+			'change-one': [ 'script1', 'script2' ],
+			'delete-me': [ 'script3', 'script4' ],
+			'background-murmur': [ 'script1', 'script2' ],
+			'random-null': null
+		};
+
+		Dependencies.saveDependencies( 10, dependencies );
+
+		const result = Dependencies.loadByRevisionId( 10 );
+		const formatted = Dependencies.reformatToSourceBased( result );
+
+		delete dependencies[ 'random-null' ];
+
+		t.strictDeepEqual( formatted, dependencies );
+
+		t.end();
+
+	} );
+
+	t.test( 'saveDependencies, delta', t => {
+
+		const baseDependencies = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'delete-one': [ 'script1', 'script4' ],
+			'add-one': [ 'script1' ],
+			'change-one': [ 'script1', 'script2' ],
+			'delete-me': [ 'script3', 'script4' ],
+			'background-murmur': [ 'script1', 'script2' ]
+		};
+
+		const childDependencies = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'delete-one': [ 'script4' ],
+			'add-one': [ 'script1', 'script5' ],
+			'change-one': [ 'script1', 'script3' ],
+			'delete-me': null,
+			'new-one': [ 'script5' ]
+		};
+
+		const gold = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'background-murmur': [ 'script1', 'script2' ],
+			'delete-one': [ 'script4' ],
+			'add-one': [ 'script1', 'script5' ],
+			'change-one': [ 'script1', 'script3' ],
+			'new-one': [ 'script5' ]
+		};
+
+		Dependencies.saveDependencies( 10, baseDependencies );
+		Dependencies.saveDependencies( 20, childDependencies, baseDependencies );
+
+		const result = Dependencies.loadByRevisionId( 20, 10 );
+		const formatted = Dependencies.reformatToSourceBased( result );
+
+		t.strictDeepEqual( formatted, gold );
+
+		t.end();
+
+	} );
+
+	t.test( '_createDelta', t => {
+
+		const baseDependencies = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'delete-one': [ 'script1', 'script4' ],
+			'add-one': [ 'script1' ],
+			'change-one': [ 'script1', 'script2' ],
+			'delete-me': [ 'script3', 'script4' ],
+			'background-murmur': [ 'script1', 'script2' ]
+		};
+
+		const childDependencies = {
+			'stays-the-same': [ 'script1', 'script2', 'script3' ],
+			'delete-one': [ 'script4' ],
+			'add-one': [ 'script1', 'script5' ],
+			'change-one': [ 'script1', 'script3' ],
+			'delete-me': null,
+			'new-one': [ 'script5' ]
+		};
+
+		const gold = [
+			{ source: 'delete-one', dependency: 'script1', value: null },
+			{ source: 'change-one', dependency: 'script2', value: null },
+			{ source: 'delete-me', dependency: 'script3', value: null },
+			{ source: 'delete-me', dependency: 'script4', value: null },
+			{ source: 'add-one', dependency: 'script5', value: 1 },
+			{ source: 'change-one', dependency: 'script3', value: 1 },
+			{ source: 'new-one', dependency: 'script5', value: 1 }
+		];
+
+		const result = Dependencies._createDelta( childDependencies, baseDependencies );
+
+		t.deepEqual( result, gold );
 
 		t.end();
 

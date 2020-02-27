@@ -4,8 +4,7 @@ const sqlite = require( 'better-sqlite3' );
 const t = require( 'tap' );
 
 const testDatabase = new sqlite( `tests`, { memory: true } );
-const Database = require( '../src/Database' ); // rigging
-Database._db = testDatabase;
+require( '../src/Database' )( testDatabase ); // rigging
 
 const dbSchema = fs.readFileSync( `${__dirname}/../src/schema.sql`, 'utf8' );
 const dbData = fs.readFileSync( `${__dirname}/helpers/File/data.sql`, 'utf8' );
