@@ -1,4 +1,5 @@
 const Database = require( '../Database' );
+const File = require( './File' );
 
 
 class Dependencies {
@@ -212,6 +213,162 @@ class Dependencies {
 		todo.sort();
 
 		return todo;
+
+	}
+
+
+	/**
+	 * Write dependencies to DB. Default mode is to save only entries that differ from the base run.
+	 * @param {number} revisionId Revision ID of child
+	 * @param {Object.<string, (string[]|null)>} dependencies Shape { HTML: ([ Source files ]|null) }, NULL'ed entries for deleted files
+	 * @param {Object.<string, string[]>?} baseDependencies
+	 */
+	static saveDependencies( revisionId, dependencies, baseDependencies = null ) {
+
+		if ( baseDependencies === null ) {
+
+			const sqlInsertDependency = Dependencies.db.prepare( `INSERT OR IGNORE INTO dependencies (revisionId, srcFileId, depFileId, value)
+				VALUES ( $revisionId, $srcFileId, (SELECT fileId FROM files WHERE name = $depFilename), 1 )
+				ON CONFLICT( revisionId, srcFileId, depFileid ) DO UPDATE SET value = 1` );
+
+			for ( const [ html, deps ] of Object.entries( dependencies ) ) {
+
+				if ( deps === null ) {
+
+					console.error( 'saveDependencies: null in forceAll:', html, 'runId', this.runId );
+					continue;
+
+				}
+
+				Dependencies.db.transaction( deps => {
+
+					// bit hacky, but we want to be sure all files have a existing DB entry
+					const source = new File();
+					source.name = html;
+					source.save();
+
+					for ( const depFilename of deps ) {
+
+						const dependency = new File();
+						dependency.name = depFilename;
+						dependency.save();
+
+						sqlInsertDependency.run( {
+							revisionId,
+							srcFileId: source.fileId,
+							depFilename
+						} );
+
+					}
+
+				} )( deps );
+
+			}
+
+		} else {
+
+			const delta = Dependencies._createDelta( dependencies, baseDependencies );
+
+			const querySet = Dependencies.db.prepare( `INSERT INTO dependencies (revisionId, srcFileId, depFileId, value)
+				VALUES (
+					$revisionId,
+					( SELECT fileId FROM files WHERE name = $srcFilename ),
+					( SELECT fileId FROM files WHERE name = $depFilename ),
+					$value
+				) ON CONFLICT ( revisionId, srcFileId, depFileid ) DO UPDATE SET value = $value` );
+
+			Dependencies.db.transaction( srcDepVal => {
+
+				for ( const d of srcDepVal ) {
+
+					const src = new File();
+					src.name = d.source;
+					src.save();
+
+					const dep = new File();
+					dep.name = d.dependency;
+					dep.save();
+
+					querySet.run( { revisionId, srcFilename: d.source, depFilename: d.dependency, value: d.value } );
+
+				}
+
+			} )( delta );
+
+		}
+
+	}
+
+
+	/**
+	 * Create a diff between two sets of source-formatted dependencies
+	 * @param {Object.<string, string[]>} childDependencies
+	 * @param {Object.<string, string[]>} baseDependencies
+	 * @returns {Array.<{ source: string, dependency: string, value: (number|null)}>} Array of source-dependency-value objects
+	 */
+	static _createDelta( childDependencies, baseDependencies ) {
+
+		const diff = [];
+
+		// everything in base but not in child stays put, unless it's differing - then we ignore base
+		Object.keys( baseDependencies ).forEach( srcFile => {
+
+			if ( srcFile in childDependencies === false ) {
+
+				// ignore
+				// console.log( srcFile, 'is in base but not in child' );
+
+			} else if ( childDependencies[ srcFile ] === null ) {
+
+				// example deleted
+				const changes = baseDependencies[ srcFile ].map( dep => {
+
+					return { source: srcFile, dependency: dep, value: null };
+
+				} );
+
+				diff.push( ...changes );
+
+			} else {
+
+				const inBaseNotChild = baseDependencies[ srcFile ].filter( d => childDependencies[ srcFile ].includes( d ) === false );
+
+				const changes = [
+					...inBaseNotChild.map( d => ( { source: srcFile, dependency: d, value: null } ) )
+				];
+
+				diff.push( ...changes );
+
+			}
+
+		} );
+
+		// everything in child dependencies but not in base gets stored in the DB
+		Object.keys( childDependencies ).forEach( srcFile => {
+
+			if ( srcFile in baseDependencies === false ) {
+
+				// it's all new, save it
+				const changes = childDependencies[ srcFile ].map( d => ( { source: srcFile, dependency: d, value: 1 } ) );
+
+				diff.push( ...changes );
+
+			} else if ( childDependencies[ srcFile ] !== null ) {
+
+				// it's not new, we might have updated dependencies
+				const inChildNotBase = childDependencies[ srcFile ].filter( d => baseDependencies[ srcFile ].includes( d ) === false );
+
+				const changes = [
+					...inChildNotBase.map( d => ( { source: srcFile, dependency: d, value: 1 } ) )
+				];
+
+				diff.push( ...changes );
+
+			}
+
+		} );
+
+		return diff;
 
 	}
 
