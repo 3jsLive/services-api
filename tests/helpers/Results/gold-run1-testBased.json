@@ -1,0 +1,28 @@
+{
+	"1": [
+		{
+			"testId": 1,
+			"fileId": 1,
+			"value": 10,
+			"runId": 1
+		},
+		{
+			"testId": 1,
+			"fileId": 2,
+			"value": 20,
+			"runId": 1
+		},
+		{
+			"testId": 1,
+			"fileId": 3,
+			"value": 23,
+			"runId": 1
+		},
+		{
+			"testId": 1,
+			"fileId": 4,
+			"value": 44,
+			"runId": 1
+		}
+	]
+}

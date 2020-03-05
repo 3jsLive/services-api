@@ -1,0 +1,34 @@
+{
+	"1": [
+		{
+			"testId": 1,
+			"fileId": 1,
+			"value": 15,
+			"runId": 2
+		}
+	],
+	"2": [
+		{
+			"testId": 1,
+			"fileId": 2,
+			"value": null,
+			"runId": 2
+		}
+	],
+	"3": [
+		{
+			"testId": 1,
+			"fileId": 3,
+			"value": 23,
+			"runId": 2
+		}
+	],
+	"5": [
+		{
+			"testId": 2,
+			"fileId": 5,
+			"value": 55,
+			"runId": 2
+		}
+	]
+}
