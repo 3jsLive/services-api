@@ -6,7 +6,15 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 
 	const files = {};
 
-	const countFn = ( testResults ) => Object.entries( testResults ).reduce( ( all, [ file, results ] ) => {
+	const hitsCounterFn = ( testResults ) => Object.entries( testResults ).reduce( ( all, [ file, results ] ) => {
+
+		all[ file ] = results.hits;
+
+		return all;
+
+	}, {} );
+
+	const resultsCounterFn = ( testResults ) => Object.entries( testResults ).reduce( ( all, [ file, results ] ) => {
 
 		all[ file ] = results.results.length;
 
@@ -16,11 +24,14 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 
 
 	// checks
-	files[ 'DocsExamples' ] = { files: countFn( checkResults[ 'checkDocsForBrokenExampleLinks' ][ 'results' ] ) };
-	files[ 'DocsExternals' ] = { files: countFn( checkResults[ 'checkDocsForBrokenExternalLinks' ][ 'results' ] ) };
-	files[ 'NonDocsExternals' ] = { files: countFn( checkResults[ 'checkNonDocsForBrokenExternalLinks' ][ 'results' ] ) };
-	files[ 'CompSrcExp' ] = { files: countFn( checkResults[ 'compareSourceExports' ][ 'results' ] ) };
-	files[ 'CompExmplsExp' ] = { files: countFn( checkResults[ 'compareExamplesExports' ][ 'results' ] ) };
+	files[ 'DocsExamples' ] = { files: hitsCounterFn( checkResults[ 'checkDocsForBrokenExampleLinks' ][ 'results' ] ) };
+	files[ 'DocsExternals' ] = { files: hitsCounterFn( checkResults[ 'checkDocsForBrokenExternalLinks' ][ 'results' ] ) };
+	files[ 'NonDocsExternals' ] = { files: hitsCounterFn( checkResults[ 'checkNonDocsForBrokenExternalLinks' ][ 'results' ] ) };
+	files[ 'CompSrcExp' ] = { files: hitsCounterFn( checkResults[ 'compareSourceExports' ][ 'results' ] ) };
+	files[ 'CompExmplsExp' ] = { files: hitsCounterFn( checkResults[ 'compareExamplesExports' ][ 'results' ] ) };
+	files[ 'DocsDecl' ] = { files: hitsCounterFn( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ] ) };
+	files[ 'ObjDecl' ] = { files: hitsCounterFn( checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ] ) };
+	files[ 'SrcDecl' ] = { files: hitsCounterFn( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ] ) };
 
 	// TODO:
 	// files[ 'TSCompiler' ] = {
@@ -29,54 +40,6 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// 		countFn( checkResults[ 'TSCompiler' ][ 'dts' ][ 'results' ] )
 	// 	)
 	// };
-
-	files[ 'DocsDecl' ] = {
-		files: Object.keys( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ] ).reduce( ( all, file ) => {
-
-			if ( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ].length === 0 )
-				return all;
-
-			const entry = checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ];
-
-			all[ file ] = entry.diff.methods.length + entry.diff.properties.length +
-				entry.onlyDecl.methods.length + entry.onlyDecl.properties.length +
-				entry.onlyDocs.methods.length + entry.onlyDocs.properties.length;
-			return all;
-
-		}, {} )
-	};
-
-	files[ 'ObjDecl' ] = {
-		files: Object.keys( checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ] ).reduce( ( all, file ) => {
-
-			const entry = checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ];
-
-			all[ file ] = Object.keys( entry ).reduce( ( total, klass ) =>
-				total += entry[ klass ].onlyDecl.methods.length + entry[ klass ].onlyDecl.properties.length +
-					entry[ klass ].onlySource.methods.length + entry[ klass ].onlySource.properties.length
-			, 0 );
-			return all;
-
-		}, {} )
-
-	};
-
-	files[ 'SrcDecl' ] = {
-		files: Object.keys( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ] ).reduce( ( all, file ) => {
-
-			if ( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ].length === 0 )
-				return all;
-
-			const entry = checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ][ 0 ];
-
-			all[ file ] =
-				entry.onlyDecl.methods.length + entry.onlyDecl.properties.length +
-				entry.onlySource.methods.length + entry.onlySource.properties.length;
-
-			return all;
-
-		}, {} )
-	};
 
 	files[ 'UnitTests' ] = { files: { 'UNITTESTS': checkResults[ 'runUnitTests' ].failed } };
 
@@ -87,7 +50,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 		// FIXME: hax, somewhere this got mixed up and now look where we ended up
 		const testName = name.replace( 'doobDoc', 'DoobsDoc' );
 
-		files[ testName ] = { files: countFn( linterResults[ name ][ 'results' ] ) };
+		files[ testName ] = { files: resultsCounterFn( linterResults[ name ][ 'results' ] ) };
 
 	} );
 
@@ -95,7 +58,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// dependencies
 	dependencies.forEach( name => {
 
-		files[ name ] = { files: countFn( dependenciesResults[ name ][ 'results' ] ) };
+		files[ name ] = { files: resultsCounterFn( dependenciesResults[ name ][ 'results' ] ) };
 
 	} );
 
@@ -103,7 +66,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// profiling
 	profiling.forEach( name => {
 
-		files[ name ] = { files: countFn( profilingResults[ name ][ 'results' ] ) };
+		files[ name ] = { files: resultsCounterFn( profilingResults[ name ][ 'results' ] ) };
 
 	} );
 

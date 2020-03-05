@@ -8,14 +8,18 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 
 	const overview = {};
 
-	const countFn = ( testResults ) => Object.values( testResults ).reduce( ( all, { results: r } ) => all += r.length, 0 );
+	const hitCounterFn = ( testResults ) => Object.values( testResults ).reduce( ( all, results ) => all += results.hits, 0 );
+	const resultsCounterFn = ( testResults ) => Object.values( testResults ).reduce( ( all, { results: r } ) => all += r.length, 0 );
 
 	// checks
-	overview[ 'DocsExamples' ] = { result: countFn( checkResults[ 'checkDocsForBrokenExampleLinks' ][ 'results' ] ) };
-	overview[ 'DocsExternals' ] = { result: countFn( checkResults[ 'checkDocsForBrokenExternalLinks' ][ 'results' ] ) };
-	overview[ 'NonDocsExternals' ] = { result: countFn( checkResults[ 'checkNonDocsForBrokenExternalLinks' ][ 'results' ] ) };
-	overview[ 'CompSrcExp' ] = { result: countFn( checkResults[ 'compareSourceExports' ][ 'results' ] ) };
-	overview[ 'CompExmplsExp' ] = { result: countFn( checkResults[ 'compareExamplesExports' ][ 'results' ] ) };
+	overview[ 'DocsExamples' ] = { result: hitCounterFn( checkResults[ 'checkDocsForBrokenExampleLinks' ][ 'results' ] ) };
+	overview[ 'DocsExternals' ] = { result: hitCounterFn( checkResults[ 'checkDocsForBrokenExternalLinks' ][ 'results' ] ) };
+	overview[ 'NonDocsExternals' ] = { result: hitCounterFn( checkResults[ 'checkNonDocsForBrokenExternalLinks' ][ 'results' ] ) };
+	overview[ 'CompSrcExp' ] = { result: hitCounterFn( checkResults[ 'compareSourceExports' ][ 'results' ] ) };
+	overview[ 'CompExmplsExp' ] = { result: hitCounterFn( checkResults[ 'compareExamplesExports' ][ 'results' ] ) };
+	overview[ 'DocsDecl' ] = { result: hitCounterFn( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ] ) };
+	overview[ 'ObjDecl' ] = { result: hitCounterFn( checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ] ) };
+	overview[ 'SrcDecl' ] = { result: hitCounterFn( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ] ) };
 
 	overview[ 'UnitTests' ] = { result: checkResults[ 'runUnitTests' ].failed };
 
@@ -24,48 +28,6 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// countFn( checkResults[ 'checkWithTSCompiler' ][ 'js' ][ 'results' ] ) + countFn( checkResults[ 'checkWithTSCompiler' ][ 'dts' ][ 'results' ] )
 	// };
 
-	// somewhat nested checks
-	overview[ 'DocsDecl' ] = {
-		result: Object.keys( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ] ).reduce( ( all, file ) => {
-
-			if ( checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ].length === 0 )
-				return all;
-
-			all +=
-		checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].diff.methods.length + checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].diff.properties.length +
-		checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDecl.methods.length + checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDecl.properties.length +
-		checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDocs.methods.length + checkResults[ 'compareDeclarationsWithDocs' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDocs.properties.length;
-
-			return all;
-
-		}, 0 )
-
-	};
-
-	overview[ 'ObjDecl' ] = {
-		result: Object.keys( checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ] ).reduce( ( all, file ) =>
-			all += Object.keys( checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ] ).reduce( ( total, klass ) =>
-				total += checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ][ klass ].onlyDecl.methods.length + checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ][ klass ].onlyDecl.properties.length +
-				checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ][ klass ].onlySource.methods.length + checkResults[ 'compareDeclarationsWithInstancedObjects' ][ 'results' ][ file ][ 'results' ][ klass ].onlySource.properties.length
-			, 0 )
-		, 0 )
-	};
-
-	overview[ 'SrcDecl' ] = {
-		result: Object.keys( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ] ).reduce( ( all, file ) => {
-
-			if ( checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ].length === 0 )
-				return all;
-
-			all +=
-			checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDecl.methods.length + checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ][ 0 ].onlyDecl.properties.length +
-			checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ][ 0 ].onlySource.methods.length + checkResults[ 'compareDeclarationsWithSource' ][ 'results' ][ file ][ 'results' ][ 0 ].onlySource.properties.length;
-
-			return all;
-
-		}, 0 )
-	};
-
 
 	// linters
 	linters.forEach( name => {
@@ -73,7 +35,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 		// FIXME: hax, somewhere this got mixed up and now look where we ended up
 		const testName = name.replace( 'doobDoc', 'DoobsDoc' );
 
-		overview[ testName ] = { result: countFn( linterResults[ name ][ 'results' ] ) };
+		overview[ testName ] = { result: resultsCounterFn( linterResults[ name ][ 'results' ] ) };
 
 	} );
 
@@ -81,7 +43,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// dependencies
 	dependencies.forEach( name => {
 
-		overview[ name ] = { result: countFn( dependenciesResults[ name ][ 'results' ] ) };
+		overview[ name ] = { result: resultsCounterFn( dependenciesResults[ name ][ 'results' ] ) };
 
 	} );
 
@@ -89,7 +51,7 @@ module.exports = ( checks, checkResults, linters, linterResults, dependencies, d
 	// dependencies
 	profiling.forEach( name => {
 
-		overview[ name ] = { result: countFn( profilingResults[ name ][ 'results' ] ) };
+		overview[ name ] = { result: resultsCounterFn( profilingResults[ name ][ 'results' ] ) };
 
 	} );
 
