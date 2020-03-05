@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS "results" (
 	"resultId"	INTEGER NOT NULL UNIQUE,
 	"testId"	INTEGER NOT NULL,
 	"fileId"	INTEGER NOT NULL,
-	"value"	INTEGER NOT NULL,
+	"value"	INTEGER,
 	PRIMARY KEY("resultId"),
 	UNIQUE("testId","fileId","value"),
 	FOREIGN KEY("testId") REFERENCES "tests"("testId")
