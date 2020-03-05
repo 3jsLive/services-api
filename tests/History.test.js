@@ -3,8 +3,13 @@ const t = require( 'tap' );
 
 const config = require( 'rc' )( '3cidev' );
 
-const History = require( '../src/helpers/History' );
+// disable logging
+const sinon = require( 'sinon' );
+const Signale = require( 'signale' );
+const stub = sinon.stub( Signale.Signale );
+stub.prototype._logger = () => {};
 
+const History = require( '../src/helpers/History' );
 
 t.test( `helpers / History`, t => {
 
