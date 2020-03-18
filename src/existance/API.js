@@ -56,7 +56,7 @@ app.get( '/sha/:sha', ( req, res ) => {
 
 		logger.log( `SHA ${sha} not found` );
 
-		res.status( 404 ).contentType( 'application/json' ).send( JSON.stringify( { exists: false } ) );
+		res.status( 200 ).contentType( 'application/json' ).send( JSON.stringify( { exists: false } ) );
 
 		return true;
 
