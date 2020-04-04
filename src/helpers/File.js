@@ -76,7 +76,7 @@ class File {
 }
 
 // working around eslint/ts syntax issues
-File.db = Database;
+File.db = Database.db;
 
 
 module.exports = File;

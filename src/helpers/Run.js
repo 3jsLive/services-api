@@ -432,6 +432,6 @@ class Run {
 /**
  * @type {import( 'better-sqlite3' ).Database}
  */
-Run.db = Database;
+Run.db = Database.db;
 
 module.exports = Run;

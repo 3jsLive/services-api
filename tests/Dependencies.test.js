@@ -7,10 +7,9 @@ const t = require( 'tap' );
 t.test( `helpers / Dependencies`, t => {
 
 	const testDatabase = new sqlite( `Dependencies.tests.db`, { memory: true } );
-	// const testDatabase = new sqlite( `/home/max/dev/delete-me/temp.db`, { fileMustExist: true } );
 
-	require( '../src/Database' )( testDatabase ); // rigging
-	// Database._db = testDatabase;
+	const DB = require( '../src/Database' );
+	DB.db = testDatabase; // rigging
 
 	const shell = require( 'shelljs' );
 

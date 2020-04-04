@@ -7,7 +7,8 @@ t.test( `helpers / Results`, t => {
 
 	const testDatabase = new sqlite( `Results.tests.db`, { memory: true } );
 
-	require( '../src/Database' )( testDatabase ); // rigging
+	const DB = require( '../src/Database' );
+	DB.db = testDatabase; // rigging
 
 	const Results = require( '../src/helpers/Results' );
 

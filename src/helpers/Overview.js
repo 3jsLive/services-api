@@ -94,6 +94,6 @@ class Overview {
 }
 
 // working around eslint/ts syntax issues
-Overview.db = Database;
+Overview.db = Database.db;
 
 module.exports = Overview;

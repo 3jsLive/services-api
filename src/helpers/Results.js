@@ -175,7 +175,7 @@ class Results {
 /**
  * @type {import( 'better-sqlite3' ).Database}
  */
-Results.db = Database;
+Results.db = Database.db;
 
 
 module.exports = Results;

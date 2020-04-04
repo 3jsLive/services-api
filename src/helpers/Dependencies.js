@@ -379,7 +379,7 @@ class Dependencies {
 /**
  * @type {import( 'better-sqlite3' ).Database}
  */
-Dependencies.db = Database;
+Dependencies.db = Database.db;
 
 
 module.exports = Dependencies;
