@@ -286,7 +286,7 @@ class Run {
 		const query = Run.db.prepare( `UPDATE runs
 			SET revisionId = $revisionId, timestamp = $timestamp, duration = $duration, delayAfterCommit = $delayAfterCommit, reason = $reason,
 			baselineRunId = $baselineRunId, parentRunId = $parentRunId, dependenciesChanged = $dependenciesChanged, machineId = $machineId,
-			machineId = $machineId, overviewId = $overviewId, type = $type
+			majorErrors = $majorErrors, overviewId = $overviewId, type = $type
 			WHERE runId = $runId` );
 
 		const result = query.run( { ...this, baselineRunId: this.baselineRunId, parentRunId: this.parentRunId, revisionId: this.revisionId, overviewId: this.overviewId } );
