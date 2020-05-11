@@ -58,12 +58,13 @@ module.exports = {
 function getDependencies( req, res ) {
 
 	const gitDir = path.join( config.root, config.threejsRepository );
+	const sha = req.params.sha;
 
 	// Prep:
 	// If we can't find a suitable answer, we'll just send every examples the requested revision has to offer
 	const allExamplesOfRevision = [];
 	const fullResult = shell.exec(
-		`git ls-tree --name-only --full-name --full-tree ${req.params.sha} examples/ | grep _`,
+		`git ls-tree --name-only --full-name --full-tree ${sha} examples/ | grep -P '^.+_.+\.html$'`,
 		{ cwd: gitDir, encoding: 'utf8', silent: true }
 	);
 	if ( fullResult.code === 0 ) {
@@ -73,9 +74,9 @@ function getDependencies( req, res ) {
 
 	} else {
 
-		logger.error( `Failed getting the emergency-all-examples-dump for ${req.params.sha}: ${fullResult.code} ${fullResult.stdout} ${fullResult.stderr}` );
+		logger.error( `Failed getting the emergency-all-examples-dump for ${sha}: ${fullResult.code} ${fullResult.stdout} ${fullResult.stderr}` );
 
-		res.status( 500 ).send( 'Error looking up requested revision' );
+		res.status( 500 ).contentType( 'application/json' ).send( JSON.stringify( { error: 'Error looking up requested revision' } ) );
 
 		return false;
 
@@ -84,9 +85,9 @@ function getDependencies( req, res ) {
 
 	// Step 0:
 	// Early exit if it's a base commit
-	if ( isBase( req.params.sha, gitDir ) ) {
+	if ( isBase( sha, gitDir ) ) {
 
-		logger.debug( `REQUEST ${req.params.sha} is base, sending everything (${allExamplesOfRevision.length})` );
+		logger.debug( `REQUEST ${sha} is base, sending everything (${allExamplesOfRevision.length})` );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
@@ -101,11 +102,11 @@ function getDependencies( req, res ) {
 	try {
 
 		// passing a raw user-controlled value to an *.exec still feels scary, but it should be purely A-F0-9
-		parentSha = getParent( req.params.sha, gitDir );
+		parentSha = getParent( sha, gitDir );
 
 	} catch ( err ) {
 
-		logger.fatal( `Something went wrong looking up the parent SHA for '${req.params.sha}', sending everything.`, err );
+		logger.fatal( `Something went wrong looking up the parent SHA for '${sha}', sending everything.`, err );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
@@ -115,7 +116,7 @@ function getDependencies( req, res ) {
 
 	if ( ! parentSha || parentSha.length !== 40 ) {
 
-		logger.error( `No parent revision found for SHA '${req.params.sha}', sending everything.` );
+		logger.error( `No parent revision found for SHA '${sha}', sending everything.` );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
@@ -139,7 +140,7 @@ function getDependencies( req, res ) {
 		if ( baseRevId === - 1 )
 			logger.debug( `parentRun #${parentRun.runId} has no baseline` );
 
-		logger.debug( `Request: SHA ${req.params.sha} has PARENT ${parentSha} -> PARENT-REVID ${parentRev.revisionId} and BASE-REVID ${baseRevId}` );
+		logger.debug( `Request: SHA ${sha} has PARENT ${parentSha} -> PARENT-REVID ${parentRev.revisionId} and BASE-REVID ${baseRevId}` );
 
 	} catch ( err ) {
 
@@ -156,7 +157,8 @@ function getDependencies( req, res ) {
 	// Step 3:
 	// Ask git what changed between the parent and the current commit
 	// TODO: ask first, *then* create depTree for better performance?
-	const retval = shell.exec( `git diff --name-status ${req.params.sha} ${parentSha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
+	// also: `git show -m --name-status --format= ${sha}`
+	const retval = shell.exec( `git diff --name-status ${parentSha} ${sha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
 
 	if ( retval.code === 0 ) {
 
