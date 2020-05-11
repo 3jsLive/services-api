@@ -2,12 +2,14 @@ module.exports = {
 
 	// sha does not exist
 	"0000000000000000000000000000000000000000": {
-		result: false
+		result: false,
+		message: 'sha does not exist'
 	},
 
 	// parent does not exist, base does -> dump all examples
 	"95fb8e348948679014f4c6afe2aefc4043b16703": {
 		result: false,
+		message: 'parent does not exist, base does -> dump all examples',
 		todo: [
 			"examples/css2d_label.html",
 			"examples/css3d_molecules.html",
@@ -375,21 +377,25 @@ module.exports = {
 	// parent does exist, as does base, but no examples need to be processed
 	"7a2f944a235e8c27141c5fb15675827d7f858b5d": {
 		result: true,
+		message: 'parent does exist, as does base, but no examples need to be processed',
 		todo: []
 	},
 
 	// parent does not exist, neither does base (literally, it has no parents)
 	"5f9327c7d416dc4a34284d4f2e695b86eeeec87a": {
-		result: false
+		result: false,
+		message: 'parent does not exist, neither does base (literally, it has no parents)'
 	},
 
 	"6aa44ac77910db6d19c36e3d1b0ffdad9f08b1dc": {
 		result: true,
+		message: 'empty result',
 		todo: []
 	},
 
 	"85ddb0a2aefa50ea46c8a041f79c9d17a1037087": {
 		result: true,
+		message: 'misc_controls_map, misc_controls_orbit, misc_controls_trackball',
 		todo: [
 			"examples/misc_controls_map.html",
 			"examples/misc_controls_orbit.html",
@@ -399,6 +405,7 @@ module.exports = {
 
 	"100a23c4aa7570567016cb23f129649e4cddaa88": {
 		result: true,
+		message: 'misc_controls_trackball',
 		todo: [
 			"examples/misc_controls_trackball.html"
 		]
@@ -406,6 +413,7 @@ module.exports = {
 
 	"a4e37560a78247d8b0332b6b288b6f476da30396": {
 		result: true,
+		message: 'webgl_lod',
 		todo: [
 			"examples/webgl_lod.html"
 		]
@@ -413,6 +421,7 @@ module.exports = {
 
 	"47968f3ad5e5f384400f13731ebb05b20f77214f": {
 		result: true,
+		message: '323 examples',
 		todo: [
 			"examples/css2d_label.html",
 			"examples/css3d_orthographic.html",
@@ -742,6 +751,7 @@ module.exports = {
 
 	"3e221c2b291374814bb64f2c1160a2e996bb5a03": {
 		result: true,
+		message: 'webgl_materials_car',
 		todo: [
 			"examples/webgl_materials_car.html"
 		]
@@ -750,18 +760,21 @@ module.exports = {
 	// parent has no base, neither does the run
 	"a9840245f505ca20df958c209b6c17cd785916a9": {
 		result: true,
+		message: 'parent has no base, neither does the run',
 		todo: [
 			"examples/webgl_math_obb.html"
 		]
 	},
 
 	"6f47e8fbb81a252b9d888503f32fad4b694f72e9": {
-		result: false
+		result: false,
+		message: 'result false'
 	},
 
 	// base commit, send everything
 	"9e072aa7f7ca5ec114df7b861af5b4111c0f1b9c": {
 		result: true,
+		message: 'base commit, send everything',
 		todo: [
 			"examples/css2d_label.html",
 			"examples/css3d_molecules.html",

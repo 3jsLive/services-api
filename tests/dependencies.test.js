@@ -1,9 +1,26 @@
 const fs = require( 'fs' );
 const path = require( 'path' );
 const sqlite = require( 'better-sqlite3' );
-const shell = require( 'shelljs' );
 
 const t = require( 'tap' );
+const sinon = require( 'sinon' );
+
+
+
+// ghetto mock
+const sendSpy = sinon.spy();
+
+const res = {
+	status: () => ( {
+		contentType: () => ( {
+			send: sendSpy
+		} )
+	} )
+};
+
+
+const gold = require( `${__dirname}/dependencies/gold.js` );
+const gold_getParent = JSON.parse( fs.readFileSync( `${__dirname}/dependencies/gold-getParent.json`, 'utf8' ) );
 
 
 t.test( `dependencies`, t => {
@@ -16,7 +33,7 @@ t.test( `dependencies`, t => {
 	const apiDatabase = new sqlite( pathDb );
 
 	const Database = require( '../src/Database' );
-	Database._db = apiDatabase;
+	Database.db = apiDatabase;
 
 	const trueConfig = require( 'rc' )( '3cidev' );
 
@@ -27,6 +44,13 @@ t.test( `dependencies`, t => {
 		'3cidev_threejsRepository': path.join( trueConfig.root, trueConfig.threejsRepository ),
 		'3cidev_api__database': pathDb
 	};
+
+	const History = require( '../src/helpers/History' );
+	const getParentHistoryStub = sinon.stub( History, 'getParent' ).callThrough();
+
+	const shell = require( 'shelljs' );
+	const execShellStub = sinon.stub( shell, 'exec' ).callThrough();
+
 	const dependencies = require( '../src/dependencies/dependencies' );
 
 	// blind hope that gunzip is installed
@@ -44,42 +68,25 @@ t.test( `dependencies`, t => {
 
 	t.test( 'getDependencies', t => {
 
-		const gold = require( `${__dirname}/dependencies/gold.js` );
-
 		for ( const [ sha, goldDeps ] of Object.entries( gold ) ) {
 
-			t.test( sha, t => {
-
-				let retval = '';
-
-				// ghetto mock
-				const res = {
-					status: () => ( {
-						contentType: () => ( {
-							send: ( val ) => {
-
-								retval = val;
-
-							}
-						} ),
-						send: ( val ) => {
-
-							retval = val;
-
-						}
-					} )
-				};
+			t.test( `${sha}: ${goldDeps.message}`, t => {
 
 				const ret = dependencies.getDependencies( { params: { sha: sha } }, res );
 
-				t.strictEqual( ret, goldDeps.result );
+				t.strictEqual( ret, goldDeps.result, `correct result: ${goldDeps.result}` );
 
 				if ( 'todo' in goldDeps ) {
 
 					goldDeps.todo.sort();
-					t.deepEqual( JSON.parse( retval ), goldDeps.todo );
+
+					const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
+
+					t.deepEqual( json, goldDeps.todo, `correct todo list - Expected: ${goldDeps.todo.length} Actual: ${json.length}` );
 
 				}
+
+				sendSpy.resetHistory();
 
 				t.end();
 
@@ -87,20 +94,82 @@ t.test( `dependencies`, t => {
 
 		}
 
+
+		t.test( 'git diff/shell.exec returns code !== 0, send everything', t => {
+
+			execShellStub
+				.withArgs( sinon.match( /^git diff --name-status [a-f0-9]{40} ac6ff1d276a5a7811f156860645efea8db8e7fed$/ ) )
+				.returns( { code: 23 } );
+
+			const retval = dependencies.getDependencies( { params: { sha: 'ac6ff1d276a5a7811f156860645efea8db8e7fed' } }, res );
+			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
+
+			t.strictEqual( retval, false, 'returns false' );
+			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+
+			execShellStub.restore();
+			sendSpy.resetHistory();
+
+			t.end();
+
+		} );
+
+
+		t.test( 'getParent fails, send everything', t => {
+
+			getParentHistoryStub.throws( 'Foo' );
+
+			const retval = dependencies.getDependencies( { params: { sha: 'ac6ff1d276a5a7811f156860645efea8db8e7fed' } }, res );
+			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
+
+			t.strictEqual( retval, false, 'returns false' );
+			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+
+			getParentHistoryStub.resetBehavior();
+			sendSpy.resetHistory();
+
+			t.end();
+
+		} );
+
+
+		t.test( 'getParent returns false, send everything', t => {
+
+			getParentHistoryStub.returns( false );
+
+			const retval = dependencies.getDependencies( { params: { sha: 'ac6ff1d276a5a7811f156860645efea8db8e7fed' } }, res );
+			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
+
+			t.strictEqual( retval, false, 'returns false' );
+			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+
+			getParentHistoryStub.resetBehavior();
+			sendSpy.resetHistory();
+
+			t.end();
+
+		} );
+
 		t.end();
 
 	} );
 
-	apiDatabase.close();
 
-	const files = [
-		`${__dirname}/dependencies/data.sql`,
-		pathDb,
-		pathDb + '-shm',
-		pathDb + '-wal',
-	];
+	t.tearDown( () => {
 
-	shell.rm( files );
+		apiDatabase.close();
+
+		const files = [
+			`${__dirname}/dependencies/data.sql`,
+			pathDb,
+			pathDb + '-shm',
+			pathDb + '-wal',
+		];
+
+		shell.rm( files );
+
+	} );
+
 
 	t.end();
 
