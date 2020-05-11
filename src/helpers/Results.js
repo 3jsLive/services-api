@@ -1,11 +1,10 @@
 const Database = require( '../Database' );
 
 
+/** @typedef {Object.<number, {resultId: number, testId: number, fileId: number, value: any}>} flatResult */
+/** @typedef {Object.<number, {resultId: number, testId: number, fileId: number, value: any, runId: number}>} deepResult */
+
 class Results {
-
-	/** @typedef {Object.<number, {resultId: number, testId: number, fileId: number, value: any}>} flatResult */
-	/** @typedef {Object.<number, {resultId: number, testId: number, fileId: number, value: any, runId: number}>} deepResult */
-
 
 	/**
 	 * @param {number} runId
@@ -13,6 +12,12 @@ class Results {
 	 * @returns {deepResult}
 	 */
 	static loadByRunId( runId, baseRunId = - 1 ) {
+
+		if ( runId === undefined || runId === null || runId < 0 )
+			throw new Error( `Invalid value for runId in Results.loadByRunId( ${runId}, ... )` );
+
+		if ( baseRunId === undefined || baseRunId === null || baseRunId < - 1 )
+			throw new Error( `Invalid value for baseRunId in Results.loadByRunId( ${runId}, ${baseRunId} )` );
 
 		let result;
 
@@ -53,7 +58,7 @@ class Results {
 
 		if ( ! result || result.length === 0 ) {
 
-			throw new Error( `Couldn't find results with for run #${runId}` );
+			throw new Error( `Couldn't find results for run #${runId}` );
 
 		} else {
 
@@ -131,12 +136,18 @@ class Results {
 	 */
 	static saveResult( runId, testId, fileId, value, baseRunId = - 1 ) {
 
+		if ( [ runId, testId, fileId ].some( p => p === undefined || p === null || p < 0 ) )
+			throw new Error( `Invalid value in Results.saveResult( ${runId}, ${testId}, ${fileId} )` );
+
+		if ( value === undefined ) // value is allowed to be null
+			throw new Error( `value is undefined in Results.saveResult( ${runId}, ${testId}, ${fileId} )` );
+
 		const sqlInsertResult = Results.db.prepare( `INSERT OR IGNORE INTO results ( testId, fileId, value ) VALUES ( ?, ?, ? )` );
 
 		if ( baseRunId === - 1 ) {
 
 			const sqlInsertRun2Result = Results.db.prepare( `INSERT OR IGNORE INTO runs2results ( runId, resultId ) VALUES ( ?, (
-				SELECT resultId FROM results WHERE testId = ? AND fileId = ? AND value = ?
+				SELECT resultId FROM results WHERE testId = ? AND fileId = ? AND value IS ?
 			) )` );
 
 			sqlInsertResult.run( testId, fileId, value );
@@ -162,11 +173,6 @@ class Results {
 		}
 
 	}
-
-
-	// static saveResults( runId, results, baseRunId = - 1 ) {
-
-	// }
 
 }
 
