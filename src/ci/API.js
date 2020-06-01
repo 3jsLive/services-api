@@ -14,10 +14,8 @@ const logger = new Signale( { scope: 'API CI', config: { displayTimestamp: true,
 const app = express();
 app.use( cors() );
 
-
 const Database = require( 'better-sqlite3' );
 const db = new Database( path.join( config.root, config.api.database ), { fileMustExist: true } );
-
 
 // import API endpoints
 const checks = require( './checks' );
@@ -26,8 +24,14 @@ const typesearches = require( './typeSearches' );
 const dependencies = require( './dependencies' );
 const profilings = require( './profilings' );
 const runInfos = require( './runInfos' );
+const debug = require( './debug' );
 
-Object.entries( { ...checks, ...linters, ...typesearches, ...dependencies, ...profilings, ...runInfos } ).forEach( ( [ route, handler ] ) => {
+const Run = require( '../helpers/Run' );
+const Results = require( '../helpers/Results' );
+const Test = require( '../helpers/Test' );
+const File = require( '../helpers/File' );
+
+Object.entries( { ...checks, ...linters, ...typesearches, ...dependencies, ...profilings, ...runInfos, ...debug } ).forEach( ( [ route, handler ] ) => {
 
 	logger.log( `Adding route for ${route}...` );
 
@@ -67,18 +71,145 @@ app.get( '/detailedOverview/:runId/:test', ( req, res ) => {
 
 	}
 
-	const { baselineRunId, parentRunId } = db.prepare( 'SELECT baselineRunid, parentRunId FROM runs WHERE runId = ?' ).get( req.params.runId );
+	if ( /^[a-z]+$/i.test( req.params.test ) !== true ) {
 
-	const rows = db.prepare( `SELECT runId, tests.name, results.value, files.name name
-		FROM runs2results
-		LEFT JOIN results USING(resultId)
-		LEFT JOIN tests USING(testId)
-		LEFT JOIN files USING(fileId)
-		WHERE runId IN (?, ?, ?) AND tests.name = ?` ).all( req.params.runId, baselineRunId, parentRunId, req.params.test );
+		logger.error( 'Invalid test:', req.params.test );
 
-	res.status( 200 ).contentType( 'application/json' ).send( {
-		baselineRunId, parentRunId, rows
-	} );
+		res.status( 500 ).send( 'Invalid test' );
+
+		return false;
+
+	}
+
+	// get the test's id
+	let test;
+	try {
+
+		test = Test.loadByName( req.params.test );
+
+	} catch ( err ) {
+
+		logger.error( `detailedOverview: Couldn't load test named '${req.params.test}' for #${req.params.runId}` );
+
+		res.status( 500 ).send( `Couldn't load requested test` );
+
+		return false;
+
+	}
+
+	const results = {};
+
+	let run;
+	try {
+
+		run = Run.loadByRunId( req.params.runId );
+
+		const _results = Results.reformatToTestBased( run.getResults() )[ test.testId ];
+
+		Object.values( _results ).reduce( ( all, result ) => {
+
+			all[ result.fileId ] = { r: result.value, p: - 1, b: - 1 };
+
+			return all;
+
+		}, results );
+
+	} catch ( err ) {
+
+		logger.error( `detailedOverview: Couldn't load current run and results for #${req.params.runId} -> ${err}` );
+
+		res.status( 500 ).send( `Couldn't load current run` );
+
+		return false;
+
+	}
+
+
+	if ( run.baselineRun ) {
+
+		try {
+
+			const _results = Results.reformatToTestBased( run.baselineRun.getResults() )[ test.testId ];
+
+			Object.values( _results ).reduce( ( all, result ) => {
+
+				all[ result.fileId ] = all[ result.fileId ] || { b: - 1, p: - 1, r: - 1 };
+				all[ result.fileId ].b = result.value;
+
+				return all;
+
+			}, results );
+
+		} catch ( err ) {
+
+			logger.error( `detailedOverview: Couldn't load results for baseline #${run.baselineRunId} of #${req.params.runId}: ${err}` );
+
+			// no failure, keep going - maybe parent run has something useful for us
+
+		}
+
+	}
+
+	if ( run.parentRun ) {
+
+		try {
+
+			const _results = Results.reformatToTestBased( run.parentRun.getResults() )[ test.testId ];
+
+			Object.values( _results ).reduce( ( all, result ) => {
+
+				all[ result.fileId ] = all[ result.fileId ] || { b: - 1, p: - 1, r: - 1 };
+				all[ result.fileId ].p = result.value;
+
+				return all;
+
+			}, results );
+
+		} catch ( err ) {
+
+			logger.error( `detailedOverview: Couldn't load results for parent #${run.parentRunId} of #${req.params.runId}: ${err}` );
+
+		}
+
+	}
+
+
+	if ( Object.keys( results ).length === 0 || Object.values( results ).every( r => r.b === - 1 && r.r === - 1 && r.p === - 1 ) ) {
+
+		// now we give up
+		res.status( 500 ).send( `No suitable results could be loaded for #${req.params.runId}` );
+
+		return false;
+
+	}
+
+
+	// finally: replace ids with filenames
+	let namedResults;
+	try {
+
+		namedResults = Object.keys( results ).reduce( ( all, id ) => {
+
+			const filename = File.loadByFileId( id ).name;
+			all[ filename ] = results[ id ];
+
+			return all;
+
+		}, {} );
+
+	} catch ( err ) {
+
+		logger.error( `detailedOverview: Couldn't load filenames for #${req.params.runId}: ${err}` );
+
+		res.status( 500 ).send( `Failed to load filenames` );
+
+		return false;
+
+	}
+
+	res.status( 200 ).contentType( 'application/json' ).send( namedResults );
+
+	return true;
 
 } );
 
