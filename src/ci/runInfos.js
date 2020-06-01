@@ -7,20 +7,17 @@ const shell = require( 'shelljs' );
 const { Signale } = require( 'signale' );
 const logger = new Signale( { scope: 'API CI', config: { displayTimestamp: true, displayDate: true } } );
 
-const Database = require( 'better-sqlite3' );
-const db = new Database( path.join( config.root, config.api.database ), { fileMustExist: true } );
+// Database
+const DB = require( '../Database' );
+const db = DB.db;
 
+// helpers
+const Dependencies = require( '../helpers/Dependencies' );
+const Run = require( '../helpers/Run' );
+const Results = require( '../helpers/Results' );
+const Overview = require( '../helpers/Overview' );
+const Test = require( '../helpers/Test' );
 
-// linters summary page TODO: WIP
-// app.get( '/runInfo/:runId/linters', ( req, res ) => {
-// 	if ( /^[0-9]+$/i.test( req.params.runId ) !== true ) {
-// 		console.error( 'Invalid runId:', req.params.runId );
-// 		res.status( 500 ).send( 'Invalid runId' );
-// 		return false;
-// 	}
-// 	const content = fs.readFileSync( `${config.jsonPath}${req.params.sha}-doobDoc.json`, 'utf8' ); // FIXME: debugging
-// 	res.status( 200 ).contentType( 'application/json' ).send( content );
-// } );
 
 const routes = {
 
@@ -35,7 +32,9 @@ const routes = {
 
 	'/runInfo/:runId/tests': tests,
 
-	'/runInfo/:runId/quickInfo': quickInfo
+	'/runInfo/:runId/quickInfo': quickInfo,
+
+	'/runInfo/:runId/debugRun': debugRun
 
 };
 
@@ -68,96 +67,95 @@ module.exports = Object.entries( routes ).reduce( ( all, [ route, handler ] ) =>
 
 function summary( req, res ) {
 
-	const result = db.prepare( `SELECT
-		runs.timestamp, runs.duration, runs.delayAfterCommit,
-		runs.reason, runs.baselineRunId, runs.parentRunId,
-		runs.dependenciesChanged, runs.majorErrors,
-		machines.info,
-		revisions.sha,
-		overviews.overviewJson
-		FROM runs
-	LEFT JOIN machines USING(machineId)
-	LEFT JOIN revisions USING(revisionId)
-	LEFT JOIN overviews USING(overviewId)
-	WHERE runs.runId = ?` ).get( req.params.runId );
+	try {
 
-	res.status( 200 ).contentType( 'application/json' ).send( result );
+		const run = Run.loadByRunId( req.params.runId );
 
-}
-
-
-function loadOverview( runId ) {
-
-	const results = db.prepare( `SELECT tests.name, SUM(value) value
-	FROM runs2results
-	LEFT JOIN results USING(resultId)
-	LEFT JOIN tests USING(testId)
-	WHERE runs2results.runId = ?
-	GROUP BY testId` ).all( runId );
-
-	const baseResults = db.prepare( `SELECT tests.name, SUM(value) value
-	FROM runs2results
-	LEFT JOIN results USING(resultId)
-	LEFT JOIN tests USING(testId)
-	WHERE runs2results.runId = (SELECT baselineRunId FROM runs WHERE runId = ?)
-	GROUP BY testId` ).all( runId );
-
-	const parentResults = db.prepare( `SELECT tests.name, SUM(value) value
-	FROM runs2results
-	LEFT JOIN results USING(resultId)
-	LEFT JOIN tests USING(testId)
-	WHERE runs2results.runId = (SELECT parentRunId FROM runs WHERE runId = ?)
-	GROUP BY testId` ).all( runId );
-
-	const errorResults = db.prepare( `SELECT tests.name, errors.value
-	FROM errors
-	LEFT JOIN runs USING(runId)
-	LEFT JOIN tests USING(testId)
-	WHERE runId = ?` ).all( runId );
-
-	const test2error = errorResults.reduce( ( all, { name, value } ) => {
-
-		all[ name ] = value;
-		return all;
-
-	}, {} );
-
-	return results.reduce( ( all, { name, value } ) => {
-
-		// always there
-		all[ name ] = {
-			result: value,
-			errors: ( typeof test2error[ name ] !== 'undefined' ) ? test2error[ name ] : 0
+		const result = {
+			timestamp: run.timestamp,
+			duration: run.duration,
+			delayAfterCommit: run.delayAfterCommit,
+			reason: run.reason,
+			baselineRunId: run.baselineRunId,
+			parentRunId: run.parentRunId,
+			dependenciesChanged: run.dependenciesChanged,
+			majorErrors: run.majorErrors,
+			info: ( run.machineId === 1 ) ? 'Azure' : 'other', // FIXME:
+			sha: run.revision.sha,
+			overviewJson: run.overview.overviewJson
 		};
 
-		// find the results for the current test (sloooow)
-		const parent = parentResults.find( element => element.name === name );
-		const baseline = baseResults.find( element => element.name === name );
+		res.status( 200 ).contentType( 'application/json' ).send( result );
 
-		if ( parent && typeof parent.value !== 'undefined' ) {
+		return true;
 
-			all[ name ][ 'parent' ] = parent.value;
-			all[ name ][ 'parentDelta' ] = ( parent.value === 0 ) ? value : ( 1 - ( value / parent.value ) );
+	} catch ( err ) {
 
-		}
+		logger.error( `summary: Couldn't Run.loadByRunId for #${req.params.runId}: ${err}` );
 
-		if ( baseline && typeof baseline.value !== 'undefined' ) {
+		res.status( 500 ).send( 'Loading run data failed' );
 
-			all[ name ][ 'baseline' ] = baseline.value;
-			all[ name ][ 'baselineDelta' ] = ( baseline.vallue === 0 ) ? value : ( 1 - ( value / baseline.value ) );
+		return false;
 
-		}
-
-		return all;
-
-	}, {} );
+	}
 
 }
 
 
 function overview( req, res ) {
 
-	const merged = loadOverview( req.params.runId );
+	// TODO: handle errors in testing (i.e.)
+
+	let run;
+	let merged;
+
+	try {
+
+		run = Run.loadByRunId( req.params.runId );
+
+		merged = run.overview.overviewJson;
+
+	} catch ( err ) {
+
+		logger.error( `overview: Couldn't load requested run: ${err}` );
+
+		res.status( 500 ).send( 'overview: invalid runId' );
+		return false;
+
+	}
+
+	const baselineOverview = ( run.baselineRun && run.baselineRun.overview ) ? run.baselineRun.overview : new Overview();
+	const parentOverview = ( run.parentRun && run.parentRun.overview ) ? run.parentRun.overview : new Overview();
+
+	for ( const task of Object.keys( baselineOverview.overviewJson ) ) {
+
+		if ( task in merged === false ) {
+
+			merged[ task ] = {
+				result: baselineOverview.overviewJson[ task ].result
+			};
+
+		}
+
+		merged[ task ].baseline = baselineOverview.overviewJson[ task ].result;
+		merged[ task ].baselineDelta = ( merged[ task ].baseline === 0 ) ? merged[ task ].result : ( 1 - ( merged[ task ].result / merged[ task ].baseline ) );
+
+	}
+
+	for ( const task of Object.keys( parentOverview.overviewJson ) ) {
+
+		if ( task in merged === false ) {
+
+			merged[ task ] = {
+				result: parentOverview.overviewJson[ task ].result
+			};
+
+		}
+
+		merged[ task ].parent = parentOverview.overviewJson[ task ].result;
+		merged[ task ].parentDelta = ( merged[ task ].parent === 0 ) ? merged[ task ].result : ( 1 - ( merged[ task ].result / merged[ task ].parent ) );
+
+	}
 
 	res.status( 200 ).contentType( 'application/json' ).send( merged );
 
@@ -166,48 +164,74 @@ function overview( req, res ) {
 
 function sparkLines( req, res ) {
 
-	const commit = db.prepare( 'SELECT sha FROM runs LEFT JOIN revisions USING(revisionId) WHERE runs.runId = ?' ).get( req.params.runId ).sha;
+	const runs = [];
 
-	let ancestry;
 	try {
 
-		ancestry = pathToBase( commit );
+		let currentRun = Run.loadByRunId( req.params.runId );
+		runs.push( currentRun );
+
+		while ( runs.length < 20 ) {
+
+			if ( currentRun.parentRun !== null ) {
+
+				runs.push( currentRun.parentRun );
+				currentRun = currentRun.parentRun;
+
+			} else {
+
+				logger.debug( `sparkLines: done looking up ancestry for #${req.params.runId}: ${runs.map( r => r.runId ).join( ', ' )}` );
+
+				break;
+
+			}
+
+		}
 
 	} catch ( err ) {
 
-		logger.error( `pathToBase failed for ${commit}` );
-		res.status( 500 ).send( 'sparklines: history lookup failed' );
-		return [];
+		logger.error( `sparkLines: Failed looking up run-history for #${req.params.runId}, current: ${runs.length} -> ${err}` );
+
+		res.status( 500 ).send( 'Failed looking up run history' );
+
+		return false;
 
 	}
 
-	const placeholdersCommits = new Array( ancestry.length ).fill( '?' ).join( ',' );
 
-	const availableRuns = db.prepare( `SELECT runId, sha
-		FROM runs
-		LEFT JOIN revisions USING(revisionId)
-		WHERE sha IN (${placeholdersCommits})` ).all( ...ancestry );
+	const data = {};
+	runs.forEach( run => {
 
-	// this should be the same length as placeholdersCommits, but sometimes it isn't
-	const placeholdersRuns = new Array( availableRuns.length ).fill( '?' ).join( ',' );
+		try {
 
-	const results = db.prepare( `SELECT runs2results.runId, tests.name, SUM(value) result
-		FROM runs2results
-		LEFT JOIN results USING(resultId)
-		LEFT JOIN tests USING(testId)
-		WHERE runs2results.runId IN (${placeholdersRuns})
-		GROUP BY runId, testId` ).all( ...availableRuns.map( run => run.runId ) );
+			const results = run.getResults();
+			const testResults = Results.reformatToTestBased( results );
 
-	const data = results.reduce( ( all, { runId, name, result } ) => {
+			Object.keys( testResults ).forEach( testId => {
 
-		// always there
-		all[ name ] = { ...( all[ name ] || {} ), [ runId ]: result };
+				const test = Test.loadByTestId( testId );
 
-		return all;
+				data[ test.name ] = data[ test.name ] || {};
+				data[ test.name ][ run.runId ] = testResults[ testId ].reduce( ( all, cur ) => {
 
-	}, {} );
+					all += cur.value;
+					return all;
+
+				}, 0 );
+
+			} );
+
+		} catch ( err ) {
+
+			logger.error( `sparkLines: Failed to process results data for run #${run.runId}: ${err}` );
+
+		}
+
+	} );
 
 	res.status( 200 ).contentType( 'application/json' ).send( data );
+
+	return true;
 
 }
 
@@ -364,5 +388,46 @@ function pathToBase( commit ) {
 
 
 	return [ baseSha, ...history ];
+
+}
+
+function debugRun( req, res ) {
+
+	res.status( 200 ).contentType( 'application/json' ).send( '{}' );
+	return true;
+
+
+	const run = Run.loadByRunId( req.params.runId );
+
+	const descendants = db.prepare( `SELECT runId FROM runs WHERE runs.baselineRunId = ?` ).all( req.params.runId ).map( r => r.runId );
+	const children = db.prepare( `SELECT runId FROM runs WHERE runs.parentRunId = ?` ).all( req.params.runId ).map( r => r.runId );
+
+	// trigger lazy loading
+	// TODO: add toJSON to Run and the other helpers
+	let _ = run.overview;
+	_ = run.baselineRun;
+	_ = run.parentRun;
+
+	const dependencies = {
+		small: ( run.dependenciesChanged === "false" ) ? Dependencies.loadByRevisionId( run.revisionId, - 1 ) : {},
+		smallSrc: ( run.dependenciesChanged === "false" ) ? Dependencies.reformatToSourceBased( Dependencies.loadByRevisionId( run.revisionId, - 1 ) ) : {},
+		fullSrc: run.getDependencies()
+	};
+
+	run.DEPS = dependencies;
+
+	const results = {
+		small: Results.loadByRunId( run.runId, - 1 ),
+		// full: run.getResults(),
+		files: Object.keys( Results.reformatToFileBased( run.getResults() ) ).length,
+		tests: Object.keys( Results.reformatToTestBased( run.getResults() ) ).length
+	};
+
+	run.RESULTS = results;
+
+	run.DESCENDANTS = descendants;
+	run.CHILDREN = children;
+
+	res.status( 200 ).contentType( 'application/json' ).send( JSON.stringify( run ) );
 
 }
