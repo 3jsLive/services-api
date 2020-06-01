@@ -3,6 +3,7 @@ const Database = require( '../Database' );
 const Dependencies = require( './Dependencies' );
 const Revision = require( './Revision' );
 const Overview = require( './Overview' );
+const Results = require( './Results' );
 
 class Run {
 
@@ -370,7 +371,6 @@ class Run {
 	 * Fetch all dependencies, either only those saved in the DB for this particular run
 	 * or merged with its base run (default)
 	 * @returns {Object.<string, string[]>} An object with HTML files as keys and the code files they depend on as values
-	 * TODO: memoize
 	 */
 	getDependencies() {
 
@@ -424,6 +424,30 @@ class Run {
 		}
 
 	}
+
+
+	/**
+	 * Fetch all results, either only those saved in the DB for this particular run
+	 * or merged with its base run (default)
+	 * @returns {import('./Results').deepResult[]} An object with HTML files as keys and the code files they depend on as values
+	 */
+	getResults() {
+
+		// TODO: adapt getDependencies with dependenciesChanged etc.
+
+		if ( this.baselineRunId > 0 ) {
+
+			return Results.loadByRunId( this.runId, this.baselineRunId );
+
+		} else {
+
+			return Results.loadByRunId( this.runId );
+
+		}
+
+	}
+
+	// saveResults //TODO:
 
 }
 
