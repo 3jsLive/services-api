@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS "machines" (
 DROP TABLE IF EXISTS "overviews";
 CREATE TABLE IF NOT EXISTS "overviews" (
 	"overviewId"	INTEGER NOT NULL UNIQUE,
-	"overviewJson"	TEXT NOT NULL UNIQUE,
+	"overviewJson"	TEXT NOT NULL,
 	PRIMARY KEY("overviewId")
 );
 DROP TABLE IF EXISTS "files";
@@ -25,15 +25,6 @@ CREATE TABLE IF NOT EXISTS "files" (
 	"fileId"	INTEGER NOT NULL UNIQUE,
 	"name"	TEXT NOT NULL UNIQUE,
 	PRIMARY KEY("fileId")
-);
-DROP TABLE IF EXISTS "updates";
-CREATE TABLE IF NOT EXISTS "updates" (
-	"updateId"	INTEGER NOT NULL UNIQUE,
-	"testId"	INTEGER NOT NULL,
-	"timestamp"	INTEGER NOT NULL,
-	"reason"	TEXT NOT NULL,
-	FOREIGN KEY("testId") REFERENCES "tests"("testId"),
-	PRIMARY KEY("updateId")
 );
 DROP TABLE IF EXISTS "results";
 CREATE TABLE IF NOT EXISTS "results" (
