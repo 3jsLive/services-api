@@ -69,7 +69,7 @@ class Overview {
 
 	_insert() {
 
-		const query = Overview.db.prepare( `INSERT OR IGNORE INTO overviews ( overviewJson ) VALUES ( $overviewJson )` );
+		const query = Overview.db.prepare( `INSERT INTO overviews ( overviewJson ) VALUES ( $overviewJson )` );
 
 		const result = query.run( { ...this } );
 
