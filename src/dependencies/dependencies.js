@@ -4,7 +4,7 @@ const shell = require( 'shelljs' );
 
 const Run = require( '../helpers/Run' );
 const Revision = require( '../helpers/Revision' );
-const { getParent, isBase } = require( '../helpers/History' ); // Not actually a class
+const History = require( '../helpers/History' ); // Not actually a class
 const Dependencies = require( '../helpers/Dependencies' );
 
 // config.api.dependencies.*
@@ -85,7 +85,7 @@ function getDependencies( req, res ) {
 
 	// Step 0:
 	// Early exit if it's a base commit
-	if ( isBase( sha, gitDir ) ) {
+	if ( History.isBase( sha, gitDir ) ) {
 
 		logger.debug( `REQUEST ${sha} is base, sending everything (${allExamplesOfRevision.length})` );
 
@@ -97,16 +97,16 @@ function getDependencies( req, res ) {
 
 
 	// Step 1:
-	// What's the parent's SHA?
-	let parentSha;
+	// What's the base's SHA?
+	let baseSha;
 	try {
 
 		// passing a raw user-controlled value to an *.exec still feels scary, but it should be purely A-F0-9
-		parentSha = getParent( sha, gitDir );
+		baseSha = History.getBase( sha, gitDir );
 
 	} catch ( err ) {
 
-		logger.fatal( `Something went wrong looking up the parent SHA for '${sha}', sending everything.`, err );
+		logger.fatal( `Something went wrong looking up the base SHA for '${sha}', sending everything.`, err );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
@@ -114,9 +114,9 @@ function getDependencies( req, res ) {
 
 	}
 
-	if ( ! parentSha || parentSha.length !== 40 ) {
+	if ( ! baseSha || baseSha.length !== 40 ) {
 
-		logger.error( `No parent revision found for SHA '${sha}', sending everything.` );
+		logger.error( `No base revision found for SHA '${sha}', sending everything.` );
 
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
 
@@ -126,25 +126,19 @@ function getDependencies( req, res ) {
 
 
 	// Step 2:
-	// Do we have a run for this SHA? Get its dependencies tree
-	let parentRev, baseRevId;
+	// Do we have a run for this SHA?
+	let baseRun;
 	try {
 
-		// load parent run for its revision id
-		parentRev = Revision.loadBySHA( parentSha );
-		const parentRun = Run.loadByRevisionId( parentRev.revisionId );
+		// load base run
+		const baseRev = Revision.loadBySHA( baseSha );
+		baseRun = Run.loadByRevisionId( baseRev.revisionId );
 
-		// get base run revision id
-		baseRevId = ( parentRun.baselineRun !== null ) ? parentRun.baselineRun.revisionId : - 1;
-
-		if ( baseRevId === - 1 )
-			logger.debug( `parentRun #${parentRun.runId} has no baseline` );
-
-		logger.debug( `Request: SHA ${sha} has PARENT ${parentSha} -> PARENT-REVID ${parentRev.revisionId} and BASE-REVID ${baseRevId}` );
+		logger.debug( `Request: SHA ${sha} has BASE-RUNID ${baseRun.runId} BASE-REVID ${baseRev.revisionId}` );
 
 	} catch ( err ) {
 
-		logger.fatal( 'Error parent revision:', err );
+		logger.fatal( 'Error base revision:', err );
 
 		// again, fail open
 		res.status( 200 ).contentType( 'application/json' ).send( jsonStableStringify( allExamplesOfRevision ) );
@@ -155,10 +149,10 @@ function getDependencies( req, res ) {
 
 
 	// Step 3:
-	// Ask git what changed between the parent and the current commit
+	// Ask git what changed between the base and the current commit
 	// TODO: ask first, *then* create depTree for better performance?
 	// also: `git show -m --name-status --format= ${sha}`
-	const retval = shell.exec( `git diff --name-status ${parentSha} ${sha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
+	const retval = shell.exec( `git diff --name-status ${baseRun.revision.sha} ${sha}`, { encoding: 'utf8', silent: true, cwd: gitDir } );
 
 	if ( retval.code === 0 ) {
 
@@ -166,8 +160,8 @@ function getDependencies( req, res ) {
 		const actions = Dependencies.parseGitDiff( retval.stdout );
 
 
-		// load merged dependencies
-		const deps = Dependencies.loadByRevisionId( parentRev.revisionId, baseRevId );
+		// load full dependencies
+		const deps = Dependencies.loadByRevisionId( baseRun.revisionId );
 		const depTree = Dependencies.reformatToDependencyBased( deps );
 
 

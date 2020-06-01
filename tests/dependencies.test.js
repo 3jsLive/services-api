@@ -20,7 +20,7 @@ const res = {
 
 
 const gold = require( `${__dirname}/dependencies/gold.js` );
-const gold_getParent = JSON.parse( fs.readFileSync( `${__dirname}/dependencies/gold-getParent.json`, 'utf8' ) );
+const gold_getBase = JSON.parse( fs.readFileSync( `${__dirname}/dependencies/gold-getBase.json`, 'utf8' ) );
 
 
 t.test( `dependencies`, t => {
@@ -46,7 +46,7 @@ t.test( `dependencies`, t => {
 	};
 
 	const History = require( '../src/helpers/History' );
-	const getParentHistoryStub = sinon.stub( History, 'getParent' ).callThrough();
+	const getBaseHistoryStub = sinon.stub( History, 'getBase' ).callThrough();
 
 	const shell = require( 'shelljs' );
 	const execShellStub = sinon.stub( shell, 'exec' ).callThrough();
@@ -105,7 +105,7 @@ t.test( `dependencies`, t => {
 			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
 
 			t.strictEqual( retval, false, 'returns false' );
-			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+			t.strictDeepEqual( json, gold_getBase, 'correct todo list' );
 
 			execShellStub.restore();
 			sendSpy.resetHistory();
@@ -115,17 +115,17 @@ t.test( `dependencies`, t => {
 		} );
 
 
-		t.test( 'getParent fails, send everything', t => {
+		t.test( 'getBase fails, send everything', t => {
 
-			getParentHistoryStub.throws( 'Foo' );
+			getBaseHistoryStub.throws( 'Foo' );
 
 			const retval = dependencies.getDependencies( { params: { sha: 'ac6ff1d276a5a7811f156860645efea8db8e7fed' } }, res );
 			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
 
 			t.strictEqual( retval, false, 'returns false' );
-			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+			t.strictDeepEqual( json, gold_getBase, 'correct todo list' );
 
-			getParentHistoryStub.resetBehavior();
+			getBaseHistoryStub.resetBehavior();
 			sendSpy.resetHistory();
 
 			t.end();
@@ -135,15 +135,15 @@ t.test( `dependencies`, t => {
 
 		t.test( 'getParent returns false, send everything', t => {
 
-			getParentHistoryStub.returns( false );
+			getBaseHistoryStub.returns( false );
 
 			const retval = dependencies.getDependencies( { params: { sha: 'ac6ff1d276a5a7811f156860645efea8db8e7fed' } }, res );
 			const json = JSON.parse( sendSpy.args[ 0 ][ 0 ] );
 
 			t.strictEqual( retval, false, 'returns false' );
-			t.strictDeepEqual( json, gold_getParent, 'correct todo list' );
+			t.strictDeepEqual( json, gold_getBase, 'correct todo list' );
 
-			getParentHistoryStub.resetBehavior();
+			getBaseHistoryStub.resetBehavior();
 			sendSpy.resetHistory();
 
 			t.end();
