@@ -14,7 +14,7 @@ const db = new Database( path.join( config.root, config.api.database ), { fileMu
 const category = 'linters';
 
 
-function EslintTsFilesList( req, res ) {
+function ESLintTsFilesList( req, res ) {
 
 	if ( /^[0-9]+$/i.test( req.params.runId ) !== true ) {
 
@@ -75,25 +75,25 @@ GROUP BY files.name ORDER BY files.name` ).all( ...availableRuns.map( run => run
 module.exports = {
 
 	// linter for doobDoc formatted files
-	'/linterDoobsDoc/showFile/:sha': createHandler( category, 'doobDoc' ),
+	'/DoobsDoc/showFile/:sha': createHandler( category, 'DoobsDoc' ),
 
 	// linter for HTML files
-	'/linterHtml/showFile/:sha': createHandler( category, 'HTMLLint' ),
+	'/HTMLLint/showFile/:sha': createHandler( category, 'HTMLLint' ),
 
 	// linter for JavaScript within <code> tags in HTML files
-	'/linterEslintCodeTags/showFile/:sha': createHandler( category, 'ESLintCodeTags' ),
+	'/ESLintCodeTags/showFile/:sha': createHandler( category, 'ESLintCodeTags' ),
 
 	// linter for JavaScript within <script> tags in HTML files
-	'/linterEslintScriptTags/showFile/:sha': createHandler( category, 'ESLintScriptTags' ),
+	'/ESLintScriptTags/showFile/:sha': createHandler( category, 'ESLintScriptTags' ),
 
 	// linter for JavaScript files
-	'/linterEslintJsFiles/showFile/:sha': createHandler( category, 'ESLintJsFiles' ),
+	'/ESLintJsFiles/showFile/:sha': createHandler( category, 'ESLintJsFiles' ),
 
 	// linter for CSS files and styles embedded in HTML files
-	'/linterCss/showFile/:sha': createHandler( category, 'StyleLint' ),
+	'/StyleLint/showFile/:sha': createHandler( category, 'StyleLint' ),
 
 	// linter for TypeScript files
-	'/linterEslintTsFiles/list/:runId': EslintTsFilesList,
-	'/linterEslintTsFiles/showFile/:sha': createHandler( category, 'ESLintTsFiles' ),
+	'/ESLintTsFiles/list/:runId': ESLintTsFilesList,
+	'/ESLintTsFiles/showFile/:sha': createHandler( category, 'ESLintTsFiles' ),
 
 };

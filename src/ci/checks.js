@@ -5,33 +5,36 @@ const category = 'checks';
 module.exports = {
 
 	// Creates a diff between docs and declaration files
-	'/docsdecl/showFile/:sha': createHandler( category, 'compareDeclarationsWithDocs' ),
+	'/DocsDecl/showFile/:sha': createHandler( category, 'DocsDecl' ),
 
 	// Creates a diff between a few selected source files and declaration files
-	'/srcdecl/showFile/:sha': createHandler( category, 'compareDeclarationsWithSource' ),
+	'/SrcDecl/showFile/:sha': createHandler( category, 'SrcDecl' ),
 
 	// Creates a diff between class instances (if possible) and declaration files
-	'/objdecl/showFile/:sha': createHandler( category, 'compareDeclarationsWithInstancedObjects' ),
+	'/ObjDecl/showFile/:sha': createHandler( category, 'ObjDecl' ),
 
 	// check with TypeScript compiler
-	'/checkWithTS/showFile/:sha': createHandler( category, 'checkWithTSCompiler' ),
+	'/TSCompiler/showFile/:sha': createHandler( category, 'checkWithTSCompiler' ),
 
 	// check docs for broken example links
-	'/checkDocsExamples/showFile/:sha': createHandler( category, 'checkDocsForBrokenExampleLinks' ),
+	'/DocsExamples/showFile/:sha': createHandler( category, 'DocsExamples' ),
 
 	// check docs for broken external links
-	'/checkDocsExternals/showFile/:sha': createHandler( category, 'checkDocsForBrokenExternalLinks' ),
+	'/DocsExternals/showFile/:sha': createHandler( category, 'DocsExternals' ),
 
 	// check non-docs for broken external links
-	'/checkNonDocsExternals/showFile/:sha': createHandler( category, 'checkNonDocsForBrokenExternalLinks' ),
+	'/NonDocsExternals/showFile/:sha': createHandler( category, 'NonDocsExternals' ),
 
 	// unit tests results
-	'/checkUnitTests/showFile/:sha': createHandler( category, 'runUnitTests' ),
+	'/UnitTests/showFile/:sha': createHandler( category, 'UnitTests' ),
 
 	// compare source exports
-	'/compareSourceExports/showFile/:sha': createHandler( category, 'compareSourceExports' ),
+	'/CompSrcExp/showFile/:sha': createHandler( category, 'CompSrcExp' ),
 
 	// compare source exports
-	'/compareExamplesExports/showFile/:sha': createHandler( category, 'compareExamplesExports' )
+	'/CompExmplsExp/showFile/:sha': createHandler( category, 'CompExmplsExp' ),
+
+	// compare sniffed types with declared rules
+	'/LawVsReality/showFile/:sha': createHandler( category, 'LawVsReality' )
 
 };
