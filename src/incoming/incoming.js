@@ -127,7 +127,7 @@ class Incoming {
 			this.run.overview = null;
 
 			this.run.reason = 'CI';
-			this.run.fullSizeEntry = '';
+			this.run.fullSizeEntry = isBase( this.revision.sha ) ? 'true' : 'false';
 			this.run.machineId = 1;
 			this.run.majorErrors = 0;
 
@@ -150,7 +150,15 @@ class Incoming {
 
 		} catch ( err ) {
 
-			logger.error( `Couldn't find base commit, saving in full: ${this.sha}`, err );
+			if ( this.run.fullSizeEntry === 'false' ) {
+
+				logger.error( `Not a fullSizeEntry but couldn't find a baseline, aborting: ${this.sha}, ${err}` );
+
+				throw new Error( `Couldn't determine baseline run, but we're full size` );
+
+			}
+
+			logger.error( `Couldn't find base commit: ${this.sha}`, err );
 
 		}
 
@@ -238,7 +246,7 @@ class Incoming {
 					// didn't count the previous results.
 					// TODO: this should nevertheless be possible in a less hacky way, no?
 					// TODO: also .error and .results[].error handling
-					if ( this._isThisBase() === false && test === 'ProfConsole' ) {
+					if ( this.run.fullSizeEntry === 'false' && this.run.baselineRun && test === 'ProfConsole' ) {
 
 						return fs.promises.readFile( path.join( config.api.ci.jsonPath, category, `ProfConsole-${this.run.baselineRun.revision.sha}.json` ), 'utf8' )
 							.then( json => JSON.parse( json ) )
@@ -450,7 +458,7 @@ class Incoming {
 			added: []
 		};
 
-		if ( this._isThisBase() === false ) {
+		if ( this.run.fullSizeEntry === 'false' ) {
 
 			const delQuery = shell.exec( `git diff --name-status ${this.sha}^1 ${this.sha}`, defaultExecOptions );
 			if ( delQuery.code !== 0 )
@@ -487,16 +495,33 @@ class Incoming {
 
 		} );
 
-		const base = this._isThisBase();
+		logger.debug( 'Saving deps... fullSizeEntry?', this.run.fullSizeEntry );
 
-		this.run.fullSizeEntry = base.toString();
-
-		logger.debug( 'Saving deps... base?', base );
-
+		let baseDependencies;
+		let baseDependenciesFormatted;
 		try {
 
-			const baseDependencies = ( this.run.baselineRun ) ? Dependencies.loadByRevisionId( this.run.baselineRun.revisionId ) : null;
-			const baseDependenciesFormatted = ( baseDependencies !== null ) ? Dependencies.reformatToSourceBased( baseDependencies ) : null;
+			baseDependencies = ( this.run.fullSizeEntry === 'true' ) ? null : Dependencies.loadByRevisionId( this.run.baselineRun.revisionId );
+			baseDependenciesFormatted = ( baseDependencies !== null ) ? Dependencies.reformatToSourceBased( baseDependencies ) : null;
+
+		} catch ( err ) {
+
+			logger.error( `Loading baseline dependencies failed: ${this.sha}, ${err}` );
+
+			throw new Error( `saveDependencies: Loading baseline dependencies failed: ${this.sha}: ` + err.message );
+
+		}
+
+		if ( this.run.fullSizeEntry === 'false' && baseDependenciesFormatted === null ) {
+
+			logger.error( `Not a fullSizeEntry but failed loading baseline dependencies, aborting: ${this.sha}` );
+
+			throw new Error( 'saveDependencies: Failed loading baseline dependencies' );
+
+		}
+
+
+		try {
 
 			Dependencies.saveDependencies(
 				this.run.revisionId,			// the revId we want to associate this run with
@@ -552,7 +577,13 @@ class Incoming {
 
 				}
 
-				Results.saveResult( this.run.runId, test.testId, fileObj.fileId, value, ( this.run.baselineRunId ) ? this.run.baselineRunId : - 1 );
+				Results.saveResult(
+					this.run.runId,
+					test.testId,
+					fileObj.fileId,
+					value,
+					( this.run.fullSizeEntry === 'false' && this.run.baselineRunId ) ? this.run.baselineRunId : - 1
+				);
 
 			}
 
@@ -573,9 +604,79 @@ class Incoming {
 
 			return;
 
+		} else if ( this.run.fullSizeEntry === 'true' ) {
+
+			logger.log( 'No point in nulling, we are a fullSizeEntry' );
+
+			return;
+
 		} else {
 
 			logger.log( 'Nulling results...' );
+
+		}
+
+
+		const baseResults = Results.loadByRunId( this.run.baselineRunId );
+		const baseResultsFileBased = Results.reformatToFileBased( baseResults );
+
+		//
+		// UNMODIFIED FILES:
+		// Static tests like check-for-404-links can differ in results no matter the modification state
+		// of the underlying file.
+		//
+		const allTests = Test.loadAll();
+		const allFiles = File.loadAll();
+		for ( const file of allFiles ) {
+
+			if ( file.fileId in baseResultsFileBased === true ) {
+
+				if ( file.name in this.gitDiff.modified === false ) {
+
+					if ( file.name in this.gitDiff.deleted === false ) {
+
+						// logger.fav( 'File', file.name, 'was neither modified nor deleted and appeared in baseResults' );
+
+						for ( const result of baseResultsFileBased[ file.fileId ] ) {
+
+							const test = allTests.find( t => t.testId === result.testId );
+
+							if ( ! this.stats.files[ test.name ] )
+								continue;
+
+							if ( ! this.stats.files[ test.name ].files[ file.name ] ) {
+
+								// logger.success( `${file.name} does not appear in the results for test ${test.name}\n` );
+
+								Results.saveResult(
+									this.run.runId,
+									test.testId,
+									file.fileId,
+									null,
+									( this.run.fullSizeEntry === 'false' && this.run.baselineRunId ) ? this.run.baselineRunId : - 1
+								);
+
+							} else if ( this.stats.files[ test.name ].files[ file.name ] !== result.value ) {
+
+								// logger.success( `${file.name} has a differing result for test ${test.name}\n` );
+
+								Results.saveResult(
+									this.run.runId,
+									test.testId,
+									file.fileId,
+									this.stats.files[ test.name ].files[ file.name ],
+									( this.run.fullSizeEntry === 'false' && this.run.baselineRunId ) ? this.run.baselineRunId : - 1
+								);
+
+							}
+
+						}
+
+					}
+
+				}
+
+			}
 
 		}
 
@@ -588,8 +689,6 @@ class Incoming {
 		// encoding for our results, we have to actively NULL the result for this file so it doesn't get
 		// copied over from the baseline run.
 		//
-		const baseResults = Results.loadByRunId( this.run.baselineRunId );
-		const baseResultsFileBased = Results.reformatToFileBased( baseResults );
 		for ( const file of this.gitDiff.modified ) {
 
 			logger.info( file, 'was modified' );
