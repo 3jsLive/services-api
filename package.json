@@ -13,6 +13,7 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "glob": "^7.1.6",
+    "globby": "^11.0.1",
     "graphlib": "^2.1.8",
     "json-stable-stringify": "^1.0.1",
     "nodegit": "^0.26.3",
