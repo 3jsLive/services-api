@@ -238,35 +238,52 @@ function sparkLines( req, res ) {
 
 function tests( req, res ) {
 
-	const tests = db.prepare( `SELECT tests.testId testId, tests.name name, tests.description description, tests.text text, tests.\`group\` \`group\`, tests.flaky flaky, 'on' status FROM runs
-	LEFT JOIN runs2results USING(runId)
-	LEFT JOIN results USING(resultId)
-	LEFT JOIN tests USING(testId)
-	WHERE runId = $runId
-	GROUP BY name
+	let usedTestIds;
+	try {
 
-	UNION
+		const results = Results.loadByRunId( req.params.runId );
 
-	SELECT *, 'off' status FROM
-	(
-		SELECT testId, name, description, text, \`group\`, flaky FROM tests WHERE 1
-		GROUP BY name
+		const resultsTestBased = Results.reformatToTestBased( results );
 
-		EXCEPT
+		usedTestIds = Object.keys( resultsTestBased ).map( id => Number.parseInt( id ) );
 
-		SELECT tests.testId testId, tests.name name, tests.description description, tests.text text, tests.\`group\` \`group\`, tests.flaky flaky FROM runs
-		LEFT JOIN runs2results USING(runId)
-		LEFT JOIN results USING(resultId)
-		LEFT JOIN tests USING(testId)
-		WHERE runId = $runId
-		GROUP BY name
+	} catch ( err ) {
 
-		ORDER BY \`group\` ASC, name ASC
-	)
-	GROUP BY name
-	ORDER BY \`group\` ASC, name ASC` ).all( { runId: req.params.runId } );
+		logger.error( `runInfo.tests: Failed getting results for #${req.params.runId}: ${err}` );
 
-	res.status( 200 ).contentType( 'application/json' ).send( tests );
+		res.status( 500 ).send( 'runInfo.tests: Results failed' );
+
+		return false;
+
+	}
+
+	let allTestsWithStatus;
+	try {
+
+		const allTests = Test.loadAll();
+
+		allTestsWithStatus = allTests.map( test => {
+
+			test.status = ( usedTestIds.includes( test.testId ) === true ) ? 'on' : 'off';
+
+			return test;
+
+		} );
+
+	} catch ( err ) {
+
+		logger.error( `runInfo.tests: Failed getting current Tests for #${req.params.runId}: ${err}` );
+
+		res.status( 500 ).send( 'runInfo.tests: Tests failed' );
+
+		return false;
+
+	}
+
+
+	res.status( 200 ).contentType( 'application/json' ).send( allTestsWithStatus );
+
+	return true;
 
 }
 
