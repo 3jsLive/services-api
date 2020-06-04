@@ -14,7 +14,7 @@ class Run {
 		this.duration = - 1;
 		this.delayAfterCommit = - 1;
 		this.reason = '';
-		this.dependenciesChanged = '';
+		this.fullSizeEntry = '';
 		this.machineId = 1;
 		this.majorErrors = 0;
 		this.type = null;
@@ -260,11 +260,11 @@ class Run {
 
 		const query = Run.db.prepare( `INSERT INTO runs
 			(revisionId, timestamp, duration, delayAfterCommit, reason,
-				baselineRunId, parentRunId, dependenciesChanged, machineId,
+				baselineRunId, parentRunId, fullSizeEntry, machineId,
 				majorErrors, overviewId, type)
 			VALUES
 			( $revisionId, $timestamp, $duration, $delayAfterCommit, $reason,
-				$baselineRunId, $parentRunId, $dependenciesChanged, $machineId,
+				$baselineRunId, $parentRunId, $fullSizeEntry, $machineId,
 				$majorErrors, $overviewId, $type )` );
 
 		const result = query.run( {
@@ -286,7 +286,7 @@ class Run {
 
 		const query = Run.db.prepare( `UPDATE runs
 			SET revisionId = $revisionId, timestamp = $timestamp, duration = $duration, delayAfterCommit = $delayAfterCommit, reason = $reason,
-			baselineRunId = $baselineRunId, parentRunId = $parentRunId, dependenciesChanged = $dependenciesChanged, machineId = $machineId,
+			baselineRunId = $baselineRunId, parentRunId = $parentRunId, fullSizeEntry = $fullSizeEntry, machineId = $machineId,
 			majorErrors = $majorErrors, overviewId = $overviewId, type = $type
 			WHERE runId = $runId` );
 
@@ -329,7 +329,7 @@ class Run {
 
 		retval.runId = result.runId;
 		retval.delayAfterCommit = result.delayAfterCommit;
-		retval.dependenciesChanged = result.dependenciesChanged;
+		retval.fullSizeEntry = result.fullSizeEntry;
 		retval.duration = result.duration;
 		retval.machineId = result.machineId;
 		retval.majorErrors = result.majorErrors;
@@ -375,7 +375,7 @@ class Run {
 	getDependencies() {
 
 		// augment this run's dependencies with its base
-		if ( this.dependenciesChanged === 'false' ) {
+		if ( this.fullSizeEntry === 'false' ) {
 
 			const baseRevisionId = ( this.baselineRun instanceof Run ) ? this.baselineRun.revisionId : - 1;
 
@@ -408,15 +408,15 @@ class Run {
 
 		if ( this.baselineRun === null || forceAll === true ) {
 
-			// dependenciesChanged as indicator for a full save
-			this.dependenciesChanged = 'true';
+			// fullSizeEntry as flag for a full save
+			this.fullSizeEntry = 'true';
 			this.save();
 
 			Dependencies.saveDependencies( this.revisionId, dependencies );
 
 		} else {
 
-			this.dependenciesChanged = 'false';
+			this.fullSizeEntry = 'false';
 			this.save();
 
 			Dependencies.saveDependencies( this.revisionId, dependencies, this.baselineRun.getDependencies() );
@@ -433,7 +433,7 @@ class Run {
 	 */
 	getResults() {
 
-		// TODO: adapt getDependencies with dependenciesChanged etc.
+		// TODO: adapt getDependencies with fullSizeEntry etc.
 
 		if ( this.baselineRunId > 0 ) {
 

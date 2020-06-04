@@ -509,7 +509,7 @@ t.test( `helpers / Run`, t => {
 
 		run.revision = rev;
 		run.delayAfterCommit = 0;
-		run.dependenciesChanged = 'false';
+		run.fullSizeEntry = 'false';
 		run.duration = 0;
 		run.machineId = 1;
 		run.majorErrors = 0;

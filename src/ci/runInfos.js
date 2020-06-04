@@ -78,7 +78,7 @@ function summary( req, res ) {
 			reason: run.reason,
 			baselineRunId: run.baselineRunId,
 			parentRunId: run.parentRunId,
-			dependenciesChanged: run.dependenciesChanged,
+			fullSizeEntry: run.fullSizeEntry,
 			majorErrors: run.majorErrors,
 			info: ( run.machineId === 1 ) ? 'Azure' : 'other', // FIXME:
 			sha: run.revision.sha,
@@ -426,8 +426,8 @@ function debugRun( req, res ) {
 	_ = run.parentRun;
 
 	const dependencies = {
-		small: ( run.dependenciesChanged === "false" ) ? Dependencies.loadByRevisionId( run.revisionId, - 1 ) : {},
-		smallSrc: ( run.dependenciesChanged === "false" ) ? Dependencies.reformatToSourceBased( Dependencies.loadByRevisionId( run.revisionId, - 1 ) ) : {},
+		small: ( run.fullSizeEntry === "false" ) ? Dependencies.loadByRevisionId( run.revisionId, - 1 ) : {},
+		smallSrc: ( run.fullSizeEntry === "false" ) ? Dependencies.reformatToSourceBased( Dependencies.loadByRevisionId( run.revisionId, - 1 ) ) : {},
 		fullSrc: run.getDependencies()
 	};
 

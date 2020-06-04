@@ -127,7 +127,7 @@ class Incoming {
 			this.run.overview = null;
 
 			this.run.reason = 'CI';
-			this.run.dependenciesChanged = '';
+			this.run.fullSizeEntry = '';
 			this.run.machineId = 1;
 			this.run.majorErrors = 0;
 
@@ -489,7 +489,7 @@ class Incoming {
 
 		const base = this._isThisBase();
 
-		this.run.dependenciesChanged = base.toString();
+		this.run.fullSizeEntry = base.toString();
 
 		logger.debug( 'Saving deps... base?', base );
 

@@ -84,8 +84,8 @@ function debugRun( req, res ) {
 	_ = run.parentRun;
 
 	const dependencies = {
-		small: ( run.dependenciesChanged === "false" ) ? Dependencies.loadByRevisionId( run.revisionId, - 1 ) : {},
-		smallSrc: ( run.dependenciesChanged === "false" ) ? Dependencies.reformatToSourceBased( Dependencies.loadByRevisionId( run.revisionId, - 1 ) ) : {},
+		small: ( run.fullSizeEntry === "false" ) ? Dependencies.loadByRevisionId( run.revisionId, - 1 ) : {},
+		smallSrc: ( run.fullSizeEntry === "false" ) ? Dependencies.reformatToSourceBased( Dependencies.loadByRevisionId( run.revisionId, - 1 ) ) : {},
 		fullSrc: run.getDependencies()
 	};
 
