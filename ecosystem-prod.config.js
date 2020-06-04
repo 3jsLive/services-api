@@ -1,7 +1,7 @@
 const defaults = {
 	instances: 1,
 	ignore_watch: [ 'node_modules' ],
-	max_memory_restart: '2G'
+	max_memory_restart: '5G'
 };
 
 module.exports = {
