@@ -62,7 +62,7 @@ const checks = [
 	'UnitTests', //'runUnitTests',
 	'CompSrcExp', //'compareSourceExports',
 	'CompExmplsExp', //'compareExamplesExports',
-	// 'LawVsReality'
+	'LawVsReality'
 ];
 
 // active linters
