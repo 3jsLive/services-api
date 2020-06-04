@@ -1,4 +1,5 @@
 PRAGMA foreign_keys = '0';
+PRAGMA journal_mode = 'wal';
 
 BEGIN TRANSACTION;
 
@@ -67,7 +68,7 @@ CREATE TABLE IF NOT EXISTS "runs" (
 	"reason"	TEXT NOT NULL,
 	"baselineRunId"	INTEGER,
 	"parentRunId"	INTEGER,
-	"dependenciesChanged"	TEXT NOT NULL,
+	"fullSizeEntry"	TEXT NOT NULL,
 	"machineId"	INTEGER NOT NULL,
 	"majorErrors"	INTEGER DEFAULT 0,
 	"overviewId"	INTEGER,
@@ -161,9 +162,6 @@ CREATE INDEX IF NOT EXISTS "src-value" ON "dependencies" (
 	"srcFileId"	ASC,
 	"value"
 );
-
 COMMIT;
 
 PRAGMA foreign_keys = '1';
-
-PRAGMA journal_mode = 'WAL';
