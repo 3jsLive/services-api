@@ -427,21 +427,22 @@ class Run {
 
 
 	/**
-	 * Fetch all results, either only those saved in the DB for this particular run
-	 * or merged with its base run (default)
+	 * Fetch all results, either only those saved in the DB for this particular run if it's a fullSizeEntry
+	 * or merged with its base run if not
 	 * @returns {import('./Results').deepResult[]} An object with HTML files as keys and the code files they depend on as values
 	 */
 	getResults() {
 
-		// TODO: adapt getDependencies with fullSizeEntry etc.
+		if ( this.fullSizeEntry === 'true' ) {
 
-		if ( this.baselineRunId > 0 ) {
-
-			return Results.loadByRunId( this.runId, this.baselineRunId );
+			return Results.loadByRunId( this.runId );
 
 		} else {
 
-			return Results.loadByRunId( this.runId );
+			if ( this.baselineRunId === null || this.baselineRunId <= 0 )
+				throw new Error( `#${this.runId} is not a fullSizeEntry but has no valid baselineRunId: #${this.baselineRunId}` );
+
+			return Results.loadByRunId( this.runId, this.baselineRunId );
 
 		}
 
