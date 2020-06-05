@@ -501,7 +501,7 @@ class Incoming {
 		let baseDependenciesFormatted;
 		try {
 
-			baseDependencies = ( this.run.fullSizeEntry === 'true' ) ? null : Dependencies.loadByRevisionId( this.run.baselineRun.revisionId );
+			baseDependencies = ( this.run.fullSizeEntry === 'true' || this.run.baselineRun === null ) ? null : Dependencies.loadByRevisionId( this.run.baselineRun.revisionId );
 			baseDependenciesFormatted = ( baseDependencies !== null ) ? Dependencies.reformatToSourceBased( baseDependencies ) : null;
 
 		} catch ( err ) {
@@ -514,9 +514,9 @@ class Incoming {
 
 		if ( this.run.fullSizeEntry === 'false' && baseDependenciesFormatted === null ) {
 
-			logger.error( `Not a fullSizeEntry but failed loading baseline dependencies, aborting: ${this.sha}` );
+			logger.error( `Not a fullSizeEntry but failed loading baseline dependencies: ${this.sha}` );
 
-			throw new Error( 'saveDependencies: Failed loading baseline dependencies' );
+			// throw new Error( 'saveDependencies: Failed loading baseline dependencies' );
 
 		}
 

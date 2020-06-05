@@ -157,15 +157,15 @@ class Results {
 
 			sqlInsertResult.run( testId, fileId, value );
 
-			const sqlInsertIfDifferent = Results.db.prepare( `INSERT INTO runs2results ( runId, resultId )
-				SELECT $runId, ( SELECT resultId FROM results WHERE testId = $testId AND fileId = $fileId AND value = $value )
+			const sqlInsertIfDifferent = Results.db.prepare( `INSERT OR IGNORE INTO runs2results ( runId, resultId )
+				SELECT $runId, ( SELECT resultId FROM results WHERE testId = $testId AND fileId = $fileId AND value IS $value )
 				WHERE
 					NOT EXISTS(
 						SELECT 1 FROM runs2results
 						WHERE
 							runId = $baseRunId
 							AND
-							resultId = ( SELECT resultId FROM results WHERE testId = $testId AND fileId = $fileId AND value = $value )
+							resultId = ( SELECT resultId FROM results WHERE testId = $testId AND fileId = $fileId AND value IS $value )
 					)` );
 
 			sqlInsertIfDifferent.run( { runId, testId, fileId, value, baseRunId } );
