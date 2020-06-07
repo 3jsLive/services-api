@@ -33,5 +33,10 @@ module.exports = {
 		watch: [ './src/dependencies', helpers ],
 		script: "./src/dependencies/API.js",
 		...defaults
+	}, {
+		name: "Linkcheck API",
+		watch: [ './src/linkcheck', helpers ],
+		script: './src/linkcheck/API.js',
+		...defaults
 	} ]
 };

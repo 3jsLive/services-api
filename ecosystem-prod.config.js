@@ -25,5 +25,9 @@ module.exports = {
 		name: "Dependencies API",
 		script: "./src/dependencies/API.js",
 		...defaults
+	}, {
+                name: "Linkcheck API",
+                script: './src/linkcheck/API.js',
+                ...defaults
 	} ]
 };
