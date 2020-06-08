@@ -18,7 +18,7 @@ app.use( express.json() ); // application/json
 
 // main cache
 const Cache = require( 'timed-cache' );
-const responseCache = new Cache( { defaultTtl: 1800 * 1000 } ); // 30 min
+const responseCache = new Cache( { defaultTtl: 60 * 60 * 24 * 1000 } ); // 24 hours
 
 
 // url checking
@@ -37,7 +37,7 @@ if ( ! TOKEN ) {
 
 app.post( '/check', ( req, res ) => {
 
-	logger.debug( '/check', req.body );
+	// logger.debug( '/check', req.body );
 
 	const { token, url } = req.body;
 
@@ -112,7 +112,7 @@ app.post( '/check', ( req, res ) => {
 
 					logger.success( `URL ${url} is positive` );
 
-					responseCache.put( url, true );
+					responseCache.put( url, true, { ttl: 1000 * 60 * 60 * 24 + Math.random() * 10 * 1000 * 60 * 60 } ); // 24 hours + random() hours * 10
 
 					return true;
 
@@ -120,7 +120,7 @@ app.post( '/check', ( req, res ) => {
 
 					logger.log( `URL ${url} is negative` );
 
-					responseCache.put( url, false );
+					responseCache.put( url, false, { ttl: 1000 * 60 * 60 * 24 + Math.random() * 10 * 1000 * 60 * 60 } ); // 24 hours + random() hours * 10
 
 					return false;
 
