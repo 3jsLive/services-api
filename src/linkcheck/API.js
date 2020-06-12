@@ -17,9 +17,10 @@ app.use( express.json() ); // application/json
 
 
 // main cache
+const ONE_HOUR = 1000 * 60 * 60;
+const ONE_DAY = ONE_HOUR * 24;
 const Cache = require( 'timed-cache' );
-const responseCache = new Cache( { defaultTtl: 60 * 60 * 24 * 1000 } ); // 24 hours
-
+const responseCache = new Cache( { defaultTtl: ONE_DAY } ); // 24 hours
 
 // url checking
 const checkLinks = require( 'check-links' );
@@ -99,40 +100,7 @@ app.post( '/check', ( req, res ) => {
 	}
 
 
-	return checkLinks( [ url ], {
-		concurrency: 1,
-		timeout: 30000,
-		retry: 1
-	} )
-		.then( resp => {
-
-			if ( resp[ url ] ) {
-
-				if ( resp[ url ].status === 'alive' ) {
-
-					logger.success( `URL ${url} is positive` );
-
-					responseCache.put( url, true, { ttl: 1000 * 60 * 60 * 24 + Math.random() * 10 * 1000 * 60 * 60 } ); // 24 hours + random() hours * 10
-
-					return true;
-
-				} else {
-
-					logger.log( `URL ${url} is negative` );
-
-					responseCache.put( url, false, { ttl: 1000 * 60 * 60 * 24 + Math.random() * 10 * 1000 * 60 * 60 } ); // 24 hours + random() hours * 10
-
-					return false;
-
-				}
-
-			} else {
-
-				return false;
-
-			}
-
-		} )
+	return _recheckOnEviction( url )
 		.then( result => res.status( result ? 200 : 404 ).contentType( 'application/json' ).send( { url, result } ) )
 		.catch( err => {
 
@@ -145,6 +113,53 @@ app.post( '/check', ( req, res ) => {
 		} );
 
 } );
+
+
+function _checkUrl( url ) {
+
+	return checkLinks( [ url ], {
+		concurrency: 1,
+		timeout: 30000,
+		retry: 1
+	} )
+		.then( resp => {
+
+			if ( resp[ url ] ) {
+
+				return resp[ url ].status === 'alive';
+
+			} else {
+
+				return false;
+
+			}
+
+		} );
+
+}
+
+
+async function _recheckOnEviction( key/* , value */ ) {
+
+	const alive = await _checkUrl( key );
+
+	if ( alive === true )
+		logger.success( `URL ${key} is positive` );
+	else
+		logger.warn( `URL ${key} is negative: ${alive}` );
+
+	responseCache.put( key, alive, {
+		ttl: ONE_DAY + Math.random() * 10 * ONE_HOUR, // 24 hours + random() hours * 10
+		callback: async function ( url, status ) {
+
+			await _recheckOnEviction( url, status );
+
+		  }
+	} );
+
+	return !! alive;
+
+}
 
 
 // default route
