@@ -641,10 +641,10 @@ class Incoming {
 
 							const test = allTests.find( t => t.testId === result.testId );
 
-							if ( ! this.stats.files[ test.name ] )
+							if ( typeof this.stats.files[ test.name ] === 'undefined' )
 								continue;
 
-							if ( ! this.stats.files[ test.name ].files[ file.name ] ) {
+							if ( typeof this.stats.files[ test.name ].files[ file.name ] === 'undefined' ) {
 
 								// logger.success( `${file.name} does not appear in the results for test ${test.name}\n` );
 
